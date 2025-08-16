@@ -4,6 +4,9 @@ export interface Observation {
   reason: string;
   detail: string;
   timestamp: number;
+  worker: string;
+  hour: string;
+  pieces?: number;
 }
 
 export interface FunctionEntry {
@@ -11,18 +14,21 @@ export interface FunctionEntry {
   name: string;
   description: string;
   worker: string;
-  pieces: number;
   observations: Observation[];
   checklists: string[];
+  // New fields from core.js
+  workers: string[];
+  hours: string[];
 }
 
 export interface Day {
   id: string;
-  name: string;
+  name:string;
   date: string; // ISO string
   functions: FunctionEntry[];
 }
 
 export interface AppState {
   days: Day[];
+  activeDayId: string | null;
 }
