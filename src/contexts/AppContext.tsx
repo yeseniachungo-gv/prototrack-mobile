@@ -7,10 +7,10 @@ type Action =
   | { type: 'SET_STATE'; payload: AppState }
   | { type: 'SET_ACTIVE_DAY'; payload: string }
   | { type: 'ADD_DAY'; payload: Day }
-  | { type: 'UPDATE_DAY'; payload: Day }
+  | { type: 'UPDATE_DAY'; payload: { dayId: string; newDayId: string; dayData: Day } }
   | { type: 'DELETE_DAY'; payload: { dayId: string } }
   | { type: 'CLONE_DAY'; payload: { dayId: string, withData: boolean } }
-  | { type: 'ADD_FUNCTION'; payload: { dayId: string; functionData: Omit<FunctionEntry, 'id' | 'observations' | 'checklists'> } }
+  | { type: 'ADD_FUNCTION'; payload: { dayId: string; functionData: Omit<FunctionEntry, 'id' | 'observations' | 'checklists' | 'description'> } }
   | { type: 'UPDATE_FUNCTION'; payload: { dayId: string; functionData: FunctionEntry } }
   | { type: 'DELETE_FUNCTION'; payload: { dayId: string; functionId: string } }
   | { type: 'UPDATE_OBSERVATION'; payload: { dayId: string; functionId: string; observation: Observation } };
@@ -23,36 +23,38 @@ function getInitialState(): AppState {
   try {
     const storedState = localStorage.getItem('gt:v2:default:state');
     if (storedState) {
-      const parsedState = JSON.parse(storedState);
-      // Compatibility fix from user's core.js (days was an object)
-      if (!Array.isArray(parsedState.days)) {
-        parsedState.days = Object.entries(parsedState.days).map(([id, dayData]: [string, any]) => ({
-          ...dayData,
-          id: id,
-          date: new Date(id).toISOString(),
-          name: dayData.name || `Dia ${id}`,
-           functions: (dayData.functions || []).map((func: any) => ({
-              ...func,
-              observations: Object.entries(func.cells || {}).map(([key, cell]: [string, any]) => {
-                  const [worker, hour] = key.split('@');
-                  return {
-                      id: crypto.randomUUID(),
-                      type: 'note',
-                      worker,
-                      hour,
-                      pieces: cell.pieces || 0,
-                      reason: cell.obs?.reason || '',
-                      detail: cell.obs?.detail || '',
-                      timestamp: new Date().getTime(),
-                  };
-              })
-           }))
-        }));
-      }
-      if (!parsedState.activeDayId && parsedState.days.length > 0) {
-        parsedState.activeDayId = parsedState.days[0].id;
-      }
-      return parsedState;
+      const state = JSON.parse(storedState);
+      const daysArray = Object.entries(state.days || {}).map(([id, dayData]: [string, any]) => ({
+        id,
+        name: dayData.name || `Dia ${id}`,
+        date: new Date(id).toISOString(),
+        functions: (dayData.functions || []).map((func: any) => ({
+          id: func.id || crypto.randomUUID(),
+          name: func.name,
+          description: func.description || '',
+          workers: func.workers || [],
+          hours: func.hours || [],
+          checklists: func.checklists || [],
+          observations: Object.entries(func.cells || {}).map(([key, cell]: [string, any]) => {
+            const [worker, hour] = key.split('@');
+            return {
+              id: crypto.randomUUID(),
+              type: 'note',
+              worker,
+              hour,
+              pieces: cell.pieces || 0,
+              reason: cell.obs?.reason || '',
+              detail: cell.obs?.detail || '',
+              timestamp: new Date().getTime(),
+            };
+          }),
+        })),
+      }));
+
+      return {
+        activeDayId: state.activeDay || (daysArray.length > 0 ? daysArray[0].id : new Date().toISOString().split('T')[0]),
+        days: daysArray,
+      };
     }
   } catch (error) {
     console.error("Failed to load state from localStorage", error);
@@ -64,8 +66,8 @@ function getInitialState(): AppState {
     activeDayId: dayId,
     days: [{
       id: dayId,
-      name: "Dia de Teste",
-      date: new Date().toISOString(),
+      name: `Dia ${dayId}`,
+      date: new Date(dayId).toISOString(),
       functions: [{
         id: crypto.randomUUID(),
         name: 'Costura',
@@ -105,18 +107,25 @@ const appReducer = (state: AppState, action: Action): AppState => {
     case 'SET_ACTIVE_DAY':
         return { ...state, activeDayId: action.payload };
     case 'ADD_DAY':
+      if (state.days.some(d => d.id === action.payload.id)) return state; // Prevent duplicates
       return { ...state, days: [...state.days, action.payload] };
-    case 'UPDATE_DAY':
+    case 'UPDATE_DAY': {
+      const newDays = state.days.map(d => d.id === action.payload.dayId ? action.payload.dayData : d);
+      const dayData = { ...action.payload.dayData, id: action.payload.newDayId };
+      const filteredDays = newDays.filter(d => d.id !== action.payload.dayId);
+
       return {
         ...state,
-        days: state.days.map(day => day.id === action.payload.id ? action.payload : day)
+        days: [...filteredDays, dayData],
+        activeDayId: action.payload.newDayId,
       };
+    }
     case 'DELETE_DAY': {
       if (state.days.length <= 1) return state; // Cannot delete the last day
       const newDays = state.days.filter((day) => day.id !== action.payload.dayId);
       let newActiveDayId = state.activeDayId;
       if (state.activeDayId === action.payload.dayId) {
-          newActiveDayId = newDays.length > 0 ? newDays[newDays.length - 1].id : null;
+          newActiveDayId = newDays.length > 0 ? newDays.sort((a,b) => a.id.localeCompare(b.id))[newDays.length - 1].id : null;
       }
       return { ...state, days: newDays, activeDayId: newActiveDayId };
     }
@@ -137,7 +146,6 @@ const appReducer = (state: AppState, action: Action): AppState => {
         functions: dayToClone.functions.map(f => ({
           ...f,
           id: crypto.randomUUID(),
-          // if cloning with data, keep observations, otherwise clear them
           observations: action.payload.withData ? JSON.parse(JSON.stringify(f.observations)) : [],
         }))
       };
@@ -182,30 +190,30 @@ const appReducer = (state: AppState, action: Action): AppState => {
       };
     }
     case 'UPDATE_OBSERVATION': {
-      return {
-        ...state,
-        days: state.days.map(day => {
-          if (day.id !== action.payload.dayId) return day;
-          return {
-            ...day,
-            functions: day.functions.map(func => {
-              if (func.id !== action.payload.functionId) return func;
-              
-              const obsIndex = func.observations.findIndex(
-                obs => obs.worker === action.payload.observation.worker && obs.hour === action.payload.observation.hour
-              );
+        return {
+            ...state,
+            days: state.days.map(day => {
+                if (day.id !== action.payload.dayId) return day;
+                return {
+                    ...day,
+                    functions: day.functions.map(func => {
+                        if (func.id !== action.payload.functionId) return func;
 
-              let newObservations = [...func.observations];
-              if (obsIndex > -1) {
-                newObservations[obsIndex] = action.payload.observation;
-              } else {
-                newObservations.push(action.payload.observation);
-              }
-              return { ...func, observations: newObservations };
+                        const existingObsIndex = func.observations.findIndex(
+                            obs => obs.worker === action.payload.observation.worker && obs.hour === action.payload.observation.hour
+                        );
+
+                        const newObservations = [...func.observations];
+                        if (existingObsIndex !== -1) {
+                            newObservations[existingObsIndex] = action.payload.observation;
+                        } else {
+                            newObservations.push(action.payload.observation);
+                        }
+                        return { ...func, observations: newObservations };
+                    })
+                };
             })
-          };
-        })
-      };
+        };
     }
     default:
       return state;
@@ -217,18 +225,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   useEffect(() => {
     try {
-      // Logic from user's core.js
-      const st = {
+      const simplifiedState = {
         activeDay: state.activeDayId,
         days: state.days.reduce((acc, day) => {
           acc[day.id] = {
-            ...day,
-            functions: (day.functions || []).map(f => ({
-              ...f,
+            functions: day.functions.map(f => ({
+              id: f.id,
+              name: f.name,
+              workers: f.workers,
+              hours: f.hours,
               cells: f.observations.reduce((cellAcc, obs) => {
                 cellAcc[`${obs.worker}@${obs.hour}`] = {
                   pieces: obs.pieces,
-                  obs: { reason: obs.reason, detail: obs.detail }
+                  obs: { reason: obs.reason || '', detail: obs.detail || '' }
                 };
                 return cellAcc;
               }, {} as any)
@@ -237,8 +246,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           return acc;
         }, {} as any)
       };
-
-      localStorage.setItem('gt:v2:default:state', JSON.stringify(st));
+      localStorage.setItem('gt:v2:default:state', JSON.stringify(simplifiedState));
     } catch (error) {
       console.error("Failed to save state to localStorage", error);
     }

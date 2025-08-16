@@ -18,7 +18,7 @@ const FunctionCard = ({ func, onOpenSheet, onEdit, onDelete }: FunctionCardProps
 
   return (
     <Card>
-      <CardContent className="p-3">
+      <CardContent className="p-4">
         <div className="flex items-center gap-2">
           <div className="font-bold flex-1">{func.name}</div>
           <Button size="sm" variant="outline" onClick={() => onEdit(func.id)}>Editar</Button>
@@ -27,9 +27,11 @@ const FunctionCard = ({ func, onOpenSheet, onEdit, onDelete }: FunctionCardProps
         <div className="text-muted-foreground text-sm mt-2">
           {totalPieces} p/h • {downtimeCount} paradas • {defectCount} defeitos
         </div>
-        <Button size="sm" className="mt-2" variant="default" onClick={() => onOpenSheet(func.id)}>
-          Abrir planilha
-        </Button>
+        <div className="mt-4">
+            <Button className="w-full" variant="default" onClick={() => onOpenSheet(func.id)}>
+              Abrir planilha
+            </Button>
+        </div>
       </CardContent>
     </Card>
   );

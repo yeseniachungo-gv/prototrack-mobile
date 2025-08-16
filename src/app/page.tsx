@@ -4,9 +4,6 @@ import React from 'react';
 import { useAppContext } from '@/contexts/AppContext';
 import { Button } from '@/components/ui/button';
 import { Plus } from 'lucide-react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Card, CardContent, CardTitle } from '@/components/ui/card';
@@ -34,7 +31,7 @@ export default function Home() {
 
   const handleAddDayEmpty = () => {
     const allDays = state.days.map(d => d.id).sort();
-    const lastDay = allDays[allDays.length-1];
+    const lastDay = allDays.length > 0 ? allDays[allDays.length-1] : new Date().toISOString().split('T')[0];
     const nextDate = new Date(lastDay);
     nextDate.setUTCDate(nextDate.getUTCDate() + 1);
     const newDayId = nextDate.toISOString().split('T')[0];
@@ -58,6 +55,23 @@ export default function Home() {
     dispatch({ type: 'CLONE_DAY', payload: { dayId: currentDay.id, withData } });
     toast({ title: `Dia ${currentDay.name} clonado!` });
   };
+
+  const handleRenameDay = () => {
+    if (!currentDay) return;
+    const newDayId = prompt('Informe a nova data (YYYY-MM-DD):', currentDay.id);
+    if (!newDayId || !/^\d{4}-\d{2}-\d{2}$/.test(newDayId)) {
+        if(newDayId) alert('Formato inválido. Use YYYY-MM-DD.');
+        return;
+    }
+    if (state.days.some(d => d.id === newDayId)) {
+        alert('Já existe um dia com essa data.');
+        return;
+    }
+
+    const updatedDay = { ...currentDay, id: newDayId, date: new Date(newDayId).toISOString() };
+    dispatch({ type: 'UPDATE_DAY', payload: { dayId: currentDay.id, newDayId: newDayId, dayData: updatedDay } });
+    toast({ title: "Dia renomeado." });
+};
   
   const handleDeleteDay = () => {
     if (!currentDay || state.days.length <= 1) {
@@ -144,14 +158,14 @@ export default function Home() {
           <div className="flex flex-wrap items-center gap-2">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="outline" className="text-sm font-bold bg-primary/10 text-primary px-3 py-1.5 rounded-full">
-                  {currentDay ? `${currentDay.name} - ${format(new Date(currentDay.date), 'dd/MM/yyyy', { locale: ptBR })}` : 'Nenhum dia'}
+                <Button variant="outline" className="text-base font-bold bg-primary/10 text-primary px-3 py-1.5 rounded-full">
+                  {currentDay ? format(new Date(currentDay.date), 'dd/MM/yyyy', { locale: ptBR }) : 'Nenhum dia'}
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent>
                 {sortedDays.map(day => (
                   <DropdownMenuItem key={day.id} onSelect={() => dispatch({ type: 'SET_ACTIVE_DAY', payload: day.id })}>
-                    {day.name} - {format(new Date(day.date), 'dd/MM/yyyy', { locale: ptBR })}
+                    {format(new Date(day.date), 'dd/MM/yyyy', { locale: ptBR })}
                   </DropdownMenuItem>
                 ))}
               </DropdownMenuContent>
@@ -160,8 +174,9 @@ export default function Home() {
             <div className="flex-grow" />
             <Button size="sm" onClick={() => handleCloneDay(false)}><Plus className="mr-1 h-4 w-4" /> Dia</Button>
             <Button size="sm" variant="outline" onClick={() => handleCloneDay(true)}>Clonar</Button>
-            <Button size="sm" variant="outline" onClick={handleAddDayEmpty}>Dia vazio</Button>
+            <Button size="sm" variant="outline" onClick={handleRenameDay}>Renomear</Button>
             <Button size="sm" variant="destructive" onClick={handleDeleteDay}>Excluir</Button>
+            <Button size="sm" variant="outline" onClick={handleAddDayEmpty}>Dia vazio</Button>
           </div>
         </CardContent>
       </Card>
@@ -180,7 +195,9 @@ export default function Home() {
               />
             ))}
              {currentDay && currentDay.functions.length === 0 && (
-                <p className="text-muted-foreground col-span-full">Nenhuma função adicionada a este dia.</p>
+                <div className="border-l-4 border-yellow-400 bg-yellow-50 text-yellow-800 p-4 rounded-r-lg dark:bg-yellow-900/20 dark:text-yellow-300">
+                    Sem funções neste dia. Toque em “+ Adicionar função”.
+                </div>
             )}
           </div>
           <Button className="mt-4" onClick={handleAddFunction} disabled={!currentDay}><Plus className="mr-2 h-4 w-4" /> Adicionar função</Button>
@@ -192,7 +209,7 @@ export default function Home() {
           <CardTitle className="text-xl mb-2">Resumo do dia</CardTitle>
           <div className="flex flex-wrap gap-2">
             <div className="bg-secondary text-secondary-foreground rounded-full px-3 py-1 text-sm font-semibold">Peças: {daySummary.pieces}</div>
-            <div className="bg-secondary text-secondary-foreground rounded-full px-3 py-1 text-sm font-semibold">Paradas: {daySummary.stops}</div>
+            <div className="bg-secondary text-secondary-foreground rounded-full px-3 py-1 text-sm font-semibold">Paradas: {daySummary.stops} min</div>
             <div className="bg-secondary text-secondary-foreground rounded-full px-3 py-1 text-sm font-semibold">Top por função: {daySummary.topFunction}</div>
           </div>
         </CardContent>
@@ -207,7 +224,7 @@ export default function Home() {
              <Button variant="outline" onClick={() => toast({title: "Em breve"})}>Fixar/Desfixar</Button>
              <Button onClick={() => router.push('/stopwatch')}>Abrir cronômetro</Button>
            </div>
-           <div className="h-3.5 bg-secondary rounded-full mt-3 overflow-hidden">
+           <div className="h-4 bg-secondary rounded-full mt-3 overflow-hidden">
              <div className="h-full bg-primary w-[0%]"></div>
            </div>
         </CardContent>
