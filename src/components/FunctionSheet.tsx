@@ -36,7 +36,7 @@ export default function FunctionSheet({ day, func, isOpen, onClose }: FunctionSh
         pieces: existingObs?.pieces || 0,
         reason: existingObs?.reason || '',
         detail: existingObs?.detail || '',
-        ...{ [field]: value }
+        ...{ [field]: value === 'none' ? '' : value }
     };
     
     dispatch({ type: 'UPDATE_OBSERVATION', payload: { dayId: day.id, functionId: func.id, observation: updatedObs } });
@@ -127,7 +127,7 @@ export default function FunctionSheet({ day, func, isOpen, onClose }: FunctionSh
                                             <SelectValue placeholder="Motivo" />
                                         </SelectTrigger>
                                         <SelectContent>
-                                            <SelectItem value="">—</SelectItem>
+                                            <SelectItem value="none">—</SelectItem>
                                             {OBSERVATION_REASONS.map(reason => (
                                                 <SelectItem key={reason} value={reason}>{reason}</SelectItem>
                                             ))}
