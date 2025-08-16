@@ -1,241 +1,242 @@
 "use client";
 
 import React from 'react';
-import { useAppContext } from '@/contexts/AppContext';
+import Header from '@/components/Header';
 import { Button } from '@/components/ui/button';
-import { Plus } from 'lucide-react';
-import { format } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
-import { Card, CardContent, CardTitle } from '@/components/ui/card';
-import { useToast } from '@/hooks/use-toast';
-import { useRouter } from 'next/navigation';
-import FunctionCard from '@/components/FunctionCard';
-import FunctionSheet from '@/components/FunctionSheet';
-import { Day, FunctionEntry } from '@/lib/types';
+import { Card, CardContent } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { useToast } from '@/hooks/use-toast';
+
+// Simplified types for this new prototype
+interface HistoryEntry {
+  id: number;
+  timestamp: string;
+  operator: string;
+  func: string;
+  interval: number;
+  pieces: number;
+  rate: number;
+}
 
 export default function Home() {
-  const { state, dispatch } = useAppContext();
   const { toast } = useToast();
-  const router = useRouter();
-  
-  const [isSheetOpen, setIsSheetOpen] = React.useState(false);
-  const [selectedFunc, setSelectedFunc] = React.useState<FunctionEntry | null>(null);
-  
-  const currentDay = state.days.find(d => d.id === state.activeDayId) || null;
+  const [activeSheet, setActiveSheet] = React.useState('Folha 1');
+  const [sheets, setSheets] = React.useState(['Folha 1', 'Folha 2']);
 
-  const handleAddDayEmpty = () => {
-    const allDays = state.days.map(d => d.id).sort();
-    const lastDay = allDays.length > 0 ? allDays[allDays.length-1] : new Date().toISOString().split('T')[0];
-    const nextDate = new Date(lastDay);
-    nextDate.setUTCDate(nextDate.getUTCDate() + 1);
-    const newDayId = nextDate.toISOString().split('T')[0];
+  // Timer State
+  const [intervalSec, setIntervalSec] = React.useState(60);
+  const [remainingSec, setRemainingSec] = React.useState(60);
+  const [pieces, setPieces] = React.useState(0);
+  const [isRunning, setIsRunning] = React.useState(false);
+  const [status, setStatus] = React.useState('Pronto');
+  const timerRef = React.useRef<NodeJS.Timeout | null>(null);
 
-    const newDay: Day = {
-      id: newDayId,
-      name: `Dia ${newDayId}`,
-      date: new Date(newDayId).toISOString(),
-      functions: [],
+  // History State
+  const [history, setHistory] = React.useState<HistoryEntry[]>([]);
+  
+  // Inputs
+  const [operator, setOperator] = React.useState('JESÚS');
+  const [func, setFunc] = React.useState('FILIGRANA');
+  const [auxTime, setAuxTime] = React.useState(8.3);
+
+
+  React.useEffect(() => {
+    if (isRunning && remainingSec > 0) {
+      timerRef.current = setTimeout(() => {
+        setRemainingSec(rem => rem - 1);
+      }, 1000);
+    } else if (remainingSec === 0 && isRunning) {
+      handleStop();
+    }
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
     };
-    dispatch({ type: 'ADD_DAY', payload: newDay });
-    dispatch({ type: 'SET_ACTIVE_DAY', payload: newDay.id });
-    toast({ title: 'Dia vazio criado.' });
-  };
-  
-  const handleCloneDay = (withData: boolean) => {
-    if (!currentDay) {
-      toast({ title: "Nenhum dia para clonar", variant: "destructive" });
-      return;
-    }
-    dispatch({ type: 'CLONE_DAY', payload: { dayId: currentDay.id, withData } });
-    toast({ title: `Dia ${currentDay.name} clonado!` });
+  }, [isRunning, remainingSec]);
+
+  const handleStart = () => {
+    if (isRunning) return;
+    setIsRunning(true);
+    setStatus('Medindo...');
   };
 
-  const handleRenameDay = () => {
-    if (!currentDay) return;
-    const newDayId = prompt('Informe a nova data (YYYY-MM-DD):', currentDay.id);
-    if (!newDayId || !/^\d{4}-\d{2}-\d{2}$/.test(newDayId)) {
-        if(newDayId) alert('Formato inválido. Use YYYY-MM-DD.');
-        return;
-    }
-    if (state.days.some(d => d.id === newDayId)) {
-        alert('Já existe um dia com essa data.');
-        return;
-    }
-
-    const updatedDay = { ...currentDay, id: newDayId, date: new Date(newDayId).toISOString() };
-    dispatch({ type: 'UPDATE_DAY', payload: { dayId: currentDay.id, newDayId: newDayId, dayData: updatedDay } });
-    toast({ title: "Dia renomeado." });
-};
-  
-  const handleDeleteDay = () => {
-    if (!currentDay || state.days.length <= 1) {
-      toast({ title: "Não é possível excluir o único dia.", variant: "destructive" });
-      return;
-    }
-    if (confirm(`Tem certeza que deseja excluir o dia "${currentDay.name}"?`)) {
-      dispatch({ type: 'DELETE_DAY', payload: { dayId: currentDay.id } });
-      toast({ title: "Dia excluído" });
-    }
-  };
-
-  const handleAddFunction = () => {
-    const name = prompt("Nome da nova função:", "Nova Função");
-    if (name && currentDay) {
-      dispatch({
-        type: 'ADD_FUNCTION',
-        payload: {
-          dayId: currentDay.id,
-          functionData: {
-            name,
-            workers: ['Operador 1', 'Operador 2'],
-            hours: ['08:00', '09:00', '10:00', '11:00'],
-          }
-        }
-      });
-      toast({ title: "Função adicionada" });
-    }
-  };
-  
-  const daySummary = React.useMemo(() => {
-    if (!currentDay) return { pieces: 0, stops: 0, topFunction: 'N/A' };
-    const pieces = currentDay.functions.reduce((acc, func) => acc + func.observations.reduce((pAcc, p) => pAcc + (p.pieces || 0), 0), 0);
-    const stops = currentDay.functions.reduce((acc, func) => acc + func.observations.filter(o => o.type === 'downtime').length, 0);
+  const handleStop = () => {
+    setIsRunning(false);
+    if (timerRef.current) clearTimeout(timerRef.current);
     
-    let topFunction = 'N/A';
-    let maxPieces = -1;
-
-    currentDay.functions.forEach(func => {
-        const funcPieces = func.observations.reduce((pAcc, p) => pAcc + (p.pieces || 0), 0);
-        if (funcPieces > maxPieces) {
-            maxPieces = funcPieces;
-            topFunction = func.name;
-        }
-    });
-
-    return { pieces, stops, topFunction };
-  }, [currentDay]);
-
-  const handleOpenSheet = (funcId: string) => {
-    const func = currentDay?.functions.find(f => f.id === funcId);
-    if (func) {
-      setSelectedFunc(func);
-      setIsSheetOpen(true);
+    if (pieces > 0) {
+        const newEntry: HistoryEntry = {
+            id: Date.now(),
+            timestamp: new Date().toLocaleString('pt-BR'),
+            operator,
+            func,
+            interval: intervalSec,
+            pieces,
+            rate: Math.round(pieces * (3600 / intervalSec)),
+        };
+        setHistory(prev => [newEntry, ...prev].slice(0, 25));
+        toast({ title: "Intervalo salvo no histórico!" });
     }
+    
+    setStatus('Finalizado');
   };
 
-  const handleEditFunction = (funcId: string) => {
-    const func = currentDay?.functions.find(f => f.id === funcId);
-    if (func && currentDay) {
-        const newName = prompt("Novo nome para a função:", func.name);
-        if (newName && newName.trim()) {
-            const updatedFunc = { ...func, name: newName.trim() };
-            dispatch({ type: 'UPDATE_FUNCTION', payload: { dayId: currentDay.id, functionData: updatedFunc } });
-            toast({ title: "Função atualizada!" });
-        }
-    }
-  };
-  
-  const handleDeleteFunction = (funcId: string) => {
-    if (currentDay && confirm("Tem certeza que deseja excluir esta função?")) {
-        dispatch({ type: 'DELETE_FUNCTION', payload: { dayId: currentDay.id, functionId: funcId } });
-        toast({ title: "Função excluída." });
-    }
+  const handleReset = () => {
+    if (timerRef.current) clearTimeout(timerRef.current);
+    setIsRunning(false);
+    setRemainingSec(intervalSec);
+    setPieces(0);
+    setStatus('Pronto');
   };
 
-  const sortedDays = [...state.days].sort((a,b) => a.id.localeCompare(b.id));
+  const selectPreset = (sec: number) => {
+    handleReset();
+    setIntervalSec(sec);
+    setRemainingSec(sec);
+  }
+
+  const rate = isFinite(pieces * (3600 / intervalSec)) ? Math.round(pieces * (3600 / intervalSec)) : 0;
+  const adjRate = Math.round(rate * (1 - (auxTime/100)));
+  const progress = isRunning ? Math.max(0, 100 * (intervalSec - remainingSec) / intervalSec) : 0;
 
   return (
     <div className="p-4 md:p-6 space-y-4">
-      <Card>
-        <CardContent className="p-4">
-          <CardTitle className="text-xl mb-2">Dia</CardTitle>
-          <div className="flex flex-wrap items-center gap-2">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" className="text-base font-bold bg-primary/10 text-primary px-3 py-1.5 rounded-full">
-                  {currentDay ? format(new Date(currentDay.date), 'dd/MM/yyyy', { locale: ptBR }) : 'Nenhum dia'}
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent>
-                {sortedDays.map(day => (
-                  <DropdownMenuItem key={day.id} onSelect={() => dispatch({ type: 'SET_ACTIVE_DAY', payload: day.id })}>
-                    {format(new Date(day.date), 'dd/MM/yyyy', { locale: ptBR })}
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
+      <Header title="Cronômetro de Produção" />
 
-            <div className="flex-grow" />
-            <Button size="sm" onClick={() => handleCloneDay(false)}><Plus className="mr-1 h-4 w-4" /> Dia</Button>
-            <Button size="sm" variant="outline" onClick={() => handleCloneDay(true)}>Clonar</Button>
-            <Button size="sm" variant="outline" onClick={handleRenameDay}>Renomear</Button>
-            <Button size="sm" variant="destructive" onClick={handleDeleteDay}>Excluir</Button>
-            <Button size="sm" variant="outline" onClick={handleAddDayEmpty}>Dia vazio</Button>
-          </div>
-        </CardContent>
-      </Card>
-      
       <Card>
-        <CardContent className="p-4">
-          <CardTitle className="text-xl mb-2">Funções de produção</CardTitle>
+          <CardContent className="p-4">
+              <div className="flex flex-wrap items-center gap-2">
+                  {sheets.map(sheet => (
+                      <Button key={sheet} variant={activeSheet === sheet ? 'default' : 'outline'} size="sm" onClick={() => setActiveSheet(sheet)}>
+                          {sheet}
+                      </Button>
+                  ))}
+                  <div className="flex-grow" />
+                  <Button variant="outline" size="sm" onClick={() => toast({title: "Em breve"})}>+ Nova</Button>
+                  <Button variant="outline" size="sm" onClick={() => toast({title: "Em breve"})}>Renomear</Button>
+                  <Button variant="destructive" size="sm" onClick={() => toast({title: "Em breve"})}>Excluir</Button>
+              </div>
+          </CardContent>
+      </Card>
+
+      <Card>
+        <CardContent className="p-4 space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {currentDay?.functions.map(func => (
-              <FunctionCard 
-                key={func.id} 
-                func={func}
-                onOpenSheet={handleOpenSheet}
-                onEdit={handleEditFunction}
-                onDelete={handleDeleteFunction}
-              />
-            ))}
-             {currentDay && currentDay.functions.length === 0 && (
-                <div className="border-l-4 border-yellow-400 bg-yellow-50 text-yellow-800 p-4 rounded-r-lg dark:bg-yellow-900/20 dark:text-yellow-300">
-                    Sem funções neste dia. Toque em “+ Adicionar função”.
+            <div>
+              <div className="text-sm text-muted-foreground mb-2">Intervalo</div>
+              <div className="flex flex-wrap gap-2">
+                {[15, 30, 60, 120, 300, 600].map(sec => (
+                   <Button key={sec} variant={intervalSec === sec ? 'secondary' : 'outline'} size="sm" onClick={() => selectPreset(sec)}>
+                       {sec >= 60 ? `${sec/60} min` : `${sec} s`}
+                   </Button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <div className="text-sm text-muted-foreground mb-2">Controles</div>
+              <div className="flex flex-wrap gap-2">
+                <Button className="bg-cyan-400 hover:bg-cyan-500 text-black font-bold" onClick={handleStart} disabled={isRunning}>Iniciar</Button>
+                <Button variant="destructive" onClick={handleStop} disabled={!isRunning}>Finalizar</Button>
+                <Button variant="outline" onClick={handleReset} disabled={isRunning}>Reiniciar</Button>
+              </div>
+            </div>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <div className="text-sm text-muted-foreground mb-1">Operador</div>
+              <Input value={operator} onChange={e => setOperator(e.target.value)} placeholder="Nome do operador" />
+            </div>
+             <div>
+              <div className="text-sm text-muted-foreground mb-1">Função</div>
+              <Input value={func} onChange={e => setFunc(e.target.value)} placeholder="Ex: Costura" />
+            </div>
+             <div>
+              <div className="text-sm text-muted-foreground mb-1">Tempo auxiliar (%)</div>
+              <Input type="number" value={auxTime} onChange={e => setAuxTime(parseFloat(e.target.value))} placeholder="Ex: 8.3" />
+            </div>
+          </div>
+
+          <div>
+             <div className="flex items-center gap-4">
+                <div className="font-mono text-5xl font-black text-cyan-300">{`${String(Math.floor(remainingSec/60)).padStart(2,'0')}:${String(remainingSec%60).padStart(2,'0')}`}</div>
+                <div className="flex-grow h-2.5 bg-secondary rounded-full overflow-hidden">
+                    <div className="h-full bg-gradient-to-r from-cyan-400 to-teal-400" style={{width: `${progress}%`, transition: 'width 0.5s linear'}}></div>
                 </div>
-            )}
+             </div>
           </div>
-          <Button className="mt-4" onClick={handleAddFunction} disabled={!currentDay}><Plus className="mr-2 h-4 w-4" /> Adicionar função</Button>
-        </CardContent>
-      </Card>
 
-      <Card>
-        <CardContent className="p-4">
-          <CardTitle className="text-xl mb-2">Resumo do dia</CardTitle>
-          <div className="flex flex-wrap gap-2">
-            <div className="bg-secondary text-secondary-foreground rounded-full px-3 py-1 text-sm font-semibold">Peças: {daySummary.pieces}</div>
-            <div className="bg-secondary text-secondary-foreground rounded-full px-3 py-1 text-sm font-semibold">Paradas: {daySummary.stops} min</div>
-            <div className="bg-secondary text-secondary-foreground rounded-full px-3 py-1 text-sm font-semibold">Top por função: {daySummary.topFunction}</div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="bg-secondary p-3 rounded-lg"><div className="text-sm text-muted-foreground">Peças</div><div className="text-2xl font-bold">{pieces}</div></div>
+            <div className="bg-secondary p-3 rounded-lg"><div className="text-sm text-muted-foreground">Média/h</div><div className="text-2xl font-bold">{rate}</div></div>
+            <div className="bg-secondary p-3 rounded-lg"><div className="text-sm text-muted-foreground">Média/h ajust.</div><div className="text-2xl font-bold">{adjRate}</div></div>
+            <div className="bg-secondary p-3 rounded-lg"><div className="text-sm text-muted-foreground">Estado</div><div className="text-2xl font-bold">{status}</div></div>
           </div>
         </CardContent>
       </Card>
 
-      <Card>
+      <div className="flex items-center justify-center gap-4 my-4">
+        <Button 
+            className="w-16 h-16 rounded-full text-3xl font-bold" 
+            variant="outline" 
+            onClick={() => setPieces(p => Math.max(0, p-1))}
+            disabled={!isRunning}
+        >−</Button>
+        <Button 
+            className="w-24 h-24 rounded-full text-5xl font-bold bg-green-500 hover:bg-green-600 text-black"
+            onClick={() => setPieces(p => p+1)}
+            disabled={!isRunning}
+        >+</Button>
+      </div>
+
+       <Card>
         <CardContent className="p-4">
-          <CardTitle className="text-xl mb-2">Cronômetro (mini)</CardTitle>
-           <div className="flex items-center gap-4">
-             <div className="font-mono text-4xl font-bold text-primary">00:00</div>
-             <div className="flex-grow" />
-             <Button variant="outline" onClick={() => toast({title: "Em breve"})}>Fixar/Desfixar</Button>
-             <Button onClick={() => router.push('/stopwatch')}>Abrir cronômetro</Button>
-           </div>
-           <div className="h-4 bg-secondary rounded-full mt-3 overflow-hidden">
-             <div className="h-full bg-primary w-[0%]"></div>
-           </div>
+          <div className="flex items-center justify-between mb-2">
+            <h2 className="text-xl font-bold">Histórico</h2>
+            <div>
+              <Button variant="outline" size="sm" onClick={() => toast({ title: "Exportado!" })}>Exportar CSV</Button>
+              <Button variant="destructive" size="sm" className="ml-2" onClick={() => setHistory([])}>Limpar</Button>
+            </div>
+          </div>
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Data/Hora</TableHead>
+                  <TableHead>Nome</TableHead>
+                  <TableHead>Função</TableHead>
+                  <TableHead>Intervalo</TableHead>
+                  <TableHead>Peças</TableHead>
+                  <TableHead>Média/h</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {history.length > 0 ? history.map(row => (
+                  <TableRow key={row.id}>
+                    <TableCell>{row.timestamp}</TableCell>
+                    <TableCell>{row.operator}</TableCell>
+                    <TableCell>{row.func}</TableCell>
+                    <TableCell>{row.interval} s</TableCell>
+                    <TableCell>{row.pieces}</TableCell>
+                    <TableCell>{row.rate}</TableCell>
+                  </TableRow>
+                )) : (
+                  <TableRow>
+                    <TableCell colSpan={6} className="text-center text-muted-foreground">Sem registros no histórico</TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </div>
         </CardContent>
       </Card>
-      
-      <FunctionSheet 
-        day={currentDay}
-        func={selectedFunc}
-        isOpen={isSheetOpen}
-        onClose={() => setIsSheetOpen(false)}
-      />
     </div>
   );
 }

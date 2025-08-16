@@ -4,7 +4,7 @@ import AppWrapper from "@/components/AppWrapper";
 
 export const metadata: Metadata = {
   title: "GiraTempo",
-  description: "An app for prototype creators to validate flows, measure times, and document findings.",
+  description: "Cronômetro de Produção",
 };
 
 export default function RootLayout({
@@ -20,7 +20,7 @@ export default function RootLayout({
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
       </head>
-      <body className="font-body antialiased">
+      <body className="font-body antialiased dark">
         <AppWrapper>{children}</AppWrapper>
       </body>
     </html>
