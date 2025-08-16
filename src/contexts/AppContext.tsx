@@ -2,24 +2,69 @@
 
 import React, { createContext, useReducer, useContext, useEffect } from 'react';
 import { AppState, Day, FunctionEntry, Observation } from '@/lib/types';
+import {produce} from 'immer';
 
 type Action =
   | { type: 'SET_STATE'; payload: AppState }
-  | { type: 'SET_ACTIVE_DAY'; payload: string };
+  | { type: 'SET_ACTIVE_DAY'; payload: string }
+  | { type: 'ADD_DAY'; payload: { day: Day } }
+  | { type: 'DELETE_DAY'; payload: { dayId: string } }
+  | { type: 'RENAME_DAY'; payload: { dayId: string, newId: string, newName: string } }
+  | { type: 'ADD_FUNCTION'; payload: { name: string } }
+  | { type: 'DELETE_FUNCTION'; payload: { functionId: string } }
+  | { type: 'UPDATE_FUNCTION'; payload: { dayId: string, functionData: FunctionEntry } }
+  | { type: 'UPDATE_OBSERVATION'; payload: { dayId: string, functionId: string, observation: Observation } };
 
-// A simplified state for the new prototype, we can remove most of the old complex logic.
-const getInitialState = (): AppState => {
-  const dayId = new Date().toISOString().split('T')[0];
+
+function getInitialState(): AppState {
+  if (typeof window !== 'undefined') {
+    const savedState = localStorage.getItem('giratempo-state');
+    if (savedState) {
+      try {
+        return JSON.parse(savedState);
+      } catch (e) {
+        console.error("Failed to parse state from localStorage", e);
+      }
+    }
+  }
+
+  // Seed data if no saved state
+  const today = new Date().toISOString().split('T')[0];
+  const makeHourRange = (start: number, end: number) => {
+    const hours = [];
+    for(let h=start; h<end; h++){
+      hours.push(String(h).padStart(2,'0') + ':00');
+    }
+    return hours;
+  };
+  
   return {
     days: [{
-        id: dayId,
-        name: `Dia ${dayId}`,
-        date: new Date().toISOString(),
-        functions: [], // Functions are managed locally in the new page component
+      id: today,
+      name: `Dia ${today}`,
+      date: new Date().toISOString(),
+      functions: [{
+        id: crypto.randomUUID(),
+        name: 'Costura',
+        description: '',
+        workers: ['Maria', 'João'],
+        hours: makeHourRange(8, 12),
+        observations: [],
+        checklists: [],
+      },
+      {
+        id: crypto.randomUUID(),
+        name: 'Embalagem',
+        description: '',
+        workers: ['Ana', 'Carlos'],
+        hours: makeHourRange(8, 12),
+        observations: [],
+        checklists: [],
+      }],
     }],
-    activeDayId: dayId,
+    activeDayId: today,
   };
-};
+}
 
 const AppContext = createContext<{
   state: AppState;
@@ -27,22 +72,78 @@ const AppContext = createContext<{
 } | undefined>(undefined);
 
 const appReducer = (state: AppState, action: Action): AppState => {
-  switch (action.type) {
-    case 'SET_STATE':
-      return action.payload;
-    case 'SET_ACTIVE_DAY':
-        return { ...state, activeDayId: action.payload };
-    default:
-      return state;
-  }
+  return produce(state, draft => {
+      switch (action.type) {
+        case 'SET_STATE':
+          return action.payload;
+
+        case 'SET_ACTIVE_DAY':
+          draft.activeDayId = action.payload;
+          break;
+
+        case 'ADD_FUNCTION': {
+            const day = draft.days.find(d => d.id === draft.activeDayId);
+            if(day) {
+                day.functions.push({
+                    id: crypto.randomUUID(),
+                    name: action.payload.name,
+                    description: '',
+                    workers: ['Operador 1'],
+                    hours: ['08:00', '09:00', '10:00', '11:00'],
+                    observations: [],
+                    checklists: [],
+                });
+            }
+            break;
+        }
+
+        case 'DELETE_FUNCTION': {
+             const day = draft.days.find(d => d.id === draft.activeDayId);
+             if(day) {
+                day.functions = day.functions.filter(f => f.id !== action.payload.functionId);
+             }
+             break;
+        }
+        
+        case 'UPDATE_FUNCTION': {
+            const day = draft.days.find(d => d.id === action.payload.dayId);
+            if(day) {
+                const funcIndex = day.functions.findIndex(f => f.id === action.payload.functionData.id);
+                if(funcIndex !== -1) {
+                    day.functions[funcIndex] = action.payload.functionData;
+                }
+            }
+            break;
+        }
+
+        case 'UPDATE_OBSERVATION': {
+          const { dayId, functionId, observation } = action.payload;
+          const day = draft.days.find(d => d.id === dayId);
+          if (day) {
+            const func = day.functions.find(f => f.id === functionId);
+            if (func) {
+              const obsIndex = func.observations.findIndex(o => o.id === observation.id);
+              if (obsIndex !== -1) {
+                func.observations[obsIndex] = observation;
+              } else {
+                func.observations.push(observation);
+              }
+            }
+          }
+          break;
+        }
+
+        default:
+          break;
+      }
+  });
 };
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [state, dispatch] = useReducer(appReducer, undefined, getInitialState);
 
-  // We can simplify or remove the localStorage logic if the new prototype handles it differently.
   useEffect(() => {
-    // console.log("State updated, but not saving to localStorage in this version.");
+    localStorage.setItem('giratempo-state', JSON.stringify(state));
   }, [state]);
 
   return (
