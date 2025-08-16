@@ -14,36 +14,59 @@ import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import FunctionCard from '@/components/FunctionCard';
 import FunctionSheet from '@/components/FunctionSheet';
-import { FunctionEntry } from '@/lib/types';
+import { Day, FunctionEntry } from '@/lib/types';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 
 export default function Home() {
   const { state, dispatch } = useAppContext();
   const { toast } = useToast();
   const router = useRouter();
-  const [isAddDayOpen, setIsAddDayOpen] = React.useState(false);
-  const [newDayName, setNewDayName] = React.useState('');
+  
   const [isSheetOpen, setIsSheetOpen] = React.useState(false);
   const [selectedFunc, setSelectedFunc] = React.useState<FunctionEntry | null>(null);
   
   const currentDay = state.days.find(d => d.id === state.activeDayId) || null;
 
-  const handleAddDay = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (newDayName.trim()) {
-      const newDayId = crypto.randomUUID();
-      dispatch({
-        type: 'ADD_DAY',
-        payload: {
-          id: newDayId,
-          name: newDayName.trim(),
-          date: new Date().toISOString(),
-          functions: [],
-        },
-      });
-      dispatch({ type: 'SET_ACTIVE_DAY', payload: newDayId });
-      setNewDayName('');
-      setIsAddDayOpen(false);
-      toast({ title: "Dia adicionado!" });
+  const handleAddDayEmpty = () => {
+    const allDays = state.days.map(d => d.id).sort();
+    const lastDay = allDays[allDays.length-1];
+    const nextDate = new Date(lastDay);
+    nextDate.setUTCDate(nextDate.getUTCDate() + 1);
+    const newDayId = nextDate.toISOString().split('T')[0];
+
+    const newDay: Day = {
+      id: newDayId,
+      name: `Dia ${newDayId}`,
+      date: new Date(newDayId).toISOString(),
+      functions: [],
+    };
+    dispatch({ type: 'ADD_DAY', payload: newDay });
+    dispatch({ type: 'SET_ACTIVE_DAY', payload: newDay.id });
+    toast({ title: 'Dia vazio criado.' });
+  };
+  
+  const handleCloneDay = (withData: boolean) => {
+    if (!currentDay) {
+      toast({ title: "Nenhum dia para clonar", variant: "destructive" });
+      return;
+    }
+    dispatch({ type: 'CLONE_DAY', payload: { dayId: currentDay.id, withData } });
+    toast({ title: `Dia ${currentDay.name} clonado!` });
+  };
+  
+  const handleDeleteDay = () => {
+    if (!currentDay || state.days.length <= 1) {
+      toast({ title: "Não é possível excluir o único dia.", variant: "destructive" });
+      return;
+    }
+    if (confirm(`Tem certeza que deseja excluir o dia "${currentDay.name}"?`)) {
+      dispatch({ type: 'DELETE_DAY', payload: { dayId: currentDay.id } });
+      toast({ title: "Dia excluído" });
     }
   };
 
@@ -55,12 +78,7 @@ export default function Home() {
         payload: {
           dayId: currentDay.id,
           functionData: {
-            id: crypto.randomUUID(),
             name,
-            description: '',
-            worker: 'Default',
-            observations: [],
-            checklists: [],
             workers: ['Operador 1', 'Operador 2'],
             hours: ['08:00', '09:00', '10:00', '11:00'],
           }
@@ -115,26 +133,8 @@ export default function Home() {
         toast({ title: "Função excluída." });
     }
   };
-  
-  const handleCloneDay = () => {
-    if (!currentDay) {
-      toast({ title: "Nenhum dia para clonar", variant: "destructive" });
-      return;
-    }
-    dispatch({ type: 'CLONE_DAY', payload: { dayId: currentDay.id } });
-    toast({ title: `Dia ${currentDay.name} clonado!` });
-  };
-  
-  const handleDeleteDay = () => {
-      if (!currentDay || state.days.length <= 1) {
-          toast({ title: "Não é possível excluir o único dia.", variant: "destructive" });
-          return;
-      }
-      if (confirm(`Tem certeza que deseja excluir o dia "${currentDay.name}"?`)) {
-          dispatch({ type: 'DELETE_DAY', payload: { dayId: currentDay.id } });
-          toast({ title: "Dia excluído" });
-      }
-  };
+
+  const sortedDays = [...state.days].sort((a,b) => a.id.localeCompare(b.id));
 
   return (
     <div className="p-4 md:p-6 space-y-4">
@@ -142,26 +142,25 @@ export default function Home() {
         <CardContent className="p-4">
           <CardTitle className="text-xl mb-2">Dia</CardTitle>
           <div className="flex flex-wrap items-center gap-2">
-            <div className="text-sm font-bold bg-primary/10 text-primary px-3 py-1.5 rounded-full">
-              {currentDay ? `${currentDay.name} - ${format(new Date(currentDay.date), 'dd/MM/yyyy', { locale: ptBR })}` : 'Nenhum dia'}
-            </div>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" className="text-sm font-bold bg-primary/10 text-primary px-3 py-1.5 rounded-full">
+                  {currentDay ? `${currentDay.name} - ${format(new Date(currentDay.date), 'dd/MM/yyyy', { locale: ptBR })}` : 'Nenhum dia'}
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent>
+                {sortedDays.map(day => (
+                  <DropdownMenuItem key={day.id} onSelect={() => dispatch({ type: 'SET_ACTIVE_DAY', payload: day.id })}>
+                    {day.name} - {format(new Date(day.date), 'dd/MM/yyyy', { locale: ptBR })}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+
             <div className="flex-grow" />
-            <Dialog open={isAddDayOpen} onOpenChange={setIsAddDayOpen}>
-              <DialogTrigger asChild>
-                <Button size="sm"><Plus className="mr-1 h-4 w-4" /> Dia</Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader><DialogTitle>Adicionar Novo Dia</DialogTitle></DialogHeader>
-                <form onSubmit={handleAddDay} className="space-y-4">
-                  <div>
-                    <Label htmlFor="day-name">Nome do Dia</Label>
-                    <Input id="day-name" value={newDayName} onChange={(e) => setNewDayName(e.target.value)} placeholder="Ex: Sessão de Teste 1" required />
-                  </div>
-                  <Button type="submit" className="w-full">Criar Dia</Button>
-                </form>
-              </DialogContent>
-            </Dialog>
-            <Button size="sm" variant="outline" onClick={handleCloneDay}>Clonar</Button>
+            <Button size="sm" onClick={() => handleCloneDay(false)}><Plus className="mr-1 h-4 w-4" /> Dia</Button>
+            <Button size="sm" variant="outline" onClick={() => handleCloneDay(true)}>Clonar</Button>
+            <Button size="sm" variant="outline" onClick={handleAddDayEmpty}>Dia vazio</Button>
             <Button size="sm" variant="destructive" onClick={handleDeleteDay}>Excluir</Button>
           </div>
         </CardContent>
@@ -209,7 +208,7 @@ export default function Home() {
              <Button onClick={() => router.push('/stopwatch')}>Abrir cronômetro</Button>
            </div>
            <div className="h-3.5 bg-secondary rounded-full mt-3 overflow-hidden">
-             <div className="h-full bg-primary w-[35%]"></div>
+             <div className="h-full bg-primary w-[0%]"></div>
            </div>
         </CardContent>
       </Card>

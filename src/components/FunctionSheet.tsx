@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Day, FunctionEntry, Observation } from '@/lib/types';
 import { useAppContext } from '@/contexts/AppContext';
+import { useToast } from '@/hooks/use-toast';
 
 interface FunctionSheetProps {
   day: Day | null;
@@ -19,60 +20,53 @@ const OBSERVATION_REASONS = ['Troca de função', 'Treinamento', 'Manutenção d
 
 export default function FunctionSheet({ day, func, isOpen, onClose }: FunctionSheetProps) {
   const { dispatch } = useAppContext();
-  const [workers, setWorkers] = useState<string[]>(func?.workers || []);
+  const { toast } = useToast();
 
   const handleCellChange = (worker: string, hour: string, field: keyof Observation, value: string | number) => {
     if (!day || !func) return;
 
-    const observationIndex = func.observations.findIndex(obs => obs.hour === hour && obs.worker === worker);
-    let newObservations = [...func.observations];
-
-    if (observationIndex > -1) {
-      const updatedObs = { ...newObservations[observationIndex], [field]: value };
-      newObservations[observationIndex] = updatedObs;
-    } else {
-      const newObs: Observation = {
-        id: crypto.randomUUID(),
-        timestamp: new Date().getTime(),
-        type: 'note',
+    const existingObs = func.observations.find(obs => obs.hour === hour && obs.worker === worker);
+    
+    const updatedObs: Observation = {
+        id: existingObs?.id || crypto.randomUUID(),
+        timestamp: existingObs?.timestamp || new Date().getTime(),
+        type: existingObs?.type || 'note',
         worker,
         hour,
-        pieces: 0,
-        reason: '',
-        detail: '',
-        [field]: value
-      };
-      newObservations.push(newObs);
-    }
+        pieces: existingObs?.pieces || 0,
+        reason: existingObs?.reason || '',
+        detail: existingObs?.detail || '',
+        ...{ [field]: value }
+    };
     
-    const updatedFunction: FunctionEntry = { ...func, observations: newObservations };
-    dispatch({ type: 'UPDATE_FUNCTION', payload: { dayId: day.id, functionData: updatedFunction } });
+    dispatch({ type: 'UPDATE_OBSERVATION', payload: { dayId: day.id, functionId: func.id, observation: updatedObs } });
   };
   
   const handleEditWorkers = () => {
-    const newWorkersStr = prompt("Edite os trabalhadores (um por linha):", func?.workers.join('\n'));
-    if (newWorkersStr && day && func) {
-        const newWorkers = newWorkersStr.split('\n').map(w => w.trim()).filter(Boolean);
-        if (newWorkers.length > 0) {
-            const updatedFunction = { ...func, workers: newWorkers };
-            dispatch({ type: 'UPDATE_FUNCTION', payload: { dayId: day.id, functionData: updatedFunction }});
-        } else {
-            alert("É necessário pelo menos um trabalhador.");
-        }
+    if (!day || !func) return;
+    const newWorkersStr = prompt("Edite os trabalhadores (um por linha):", func.workers.join('\\n'));
+    if (newWorkersStr) {
+      const newWorkers = newWorkersStr.split('\\n').map(w => w.trim()).filter(Boolean);
+      if (newWorkers.length > 0) {
+        const updatedFunction = { ...func, workers: newWorkers };
+        dispatch({ type: 'UPDATE_FUNCTION', payload: { dayId: day.id, functionData: updatedFunction }});
+        toast({ title: "Trabalhadores atualizados." });
+      } else {
+        alert("É necessário pelo menos um trabalhador.");
+      }
     }
   };
 
   const handleAddHour = () => {
-      if (!day || !func) return;
-      const lastHour = func.hours.length > 0 ? func.hours[func.hours.length - 1] : '07:00';
-      const [h] = lastHour.split(':').map(Number);
-      const nextHour = `${String(h + 1).padStart(2, '0')}:00`;
-      if (!func.hours.includes(nextHour)) {
-        const updatedFunction = { ...func, hours: [...func.hours, nextHour] };
-        dispatch({ type: 'UPDATE_FUNCTION', payload: { dayId: day.id, functionData: updatedFunction }});
-      }
+    if (!day || !func) return;
+    const lastHour = func.hours.length > 0 ? func.hours[func.hours.length - 1] : '07:00';
+    const [h] = lastHour.split(':').map(Number);
+    const nextHour = `${String(h + 1).padStart(2, '0')}:00`;
+    if (!func.hours.includes(nextHour)) {
+      const updatedFunction = { ...func, hours: [...func.hours, nextHour] };
+      dispatch({ type: 'UPDATE_FUNCTION', payload: { dayId: day.id, functionData: updatedFunction }});
+    }
   }
-
 
   const getCellData = (worker: string, hour: string) => {
     return func?.observations.find(obs => obs.worker === worker && obs.hour === hour);
