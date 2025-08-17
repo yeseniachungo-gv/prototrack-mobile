@@ -77,7 +77,7 @@ export interface Profile {
   dailyGoal: DailyGoal;
   masterWorkers: MasterDataItem[];
   masterStopReasons: MasterDataItem[];
-  stopwatchHistory: StopwatchHistoryEntry[];
+  stopwatch: StopwatchState;
 }
 
 export interface AppState {
@@ -86,6 +86,5 @@ export interface AppState {
   activeProfileId: string | null;
   currentProfileForLogin: string | null; // Used to know which profile is trying to log in
   theme: 'light' | 'dark';
-  stopwatch: StopwatchState; // Kept for backwards compatibility with old state structure
   announcements: Announcement[];
 }

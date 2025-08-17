@@ -4,7 +4,7 @@
 import React, { useState, useMemo } from 'react';
 import Header from '@/components/Header';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { ShieldCheck, Users, BarChart2, Loader2, BookCheck, Plus, Trash2, Lock, WifiOff, Zap, Timer } from 'lucide-react';
+import { ShieldCheck, Users, BarChart2, Loader2, BookCheck, Plus, Trash2, Lock, WifiOff, Timer } from 'lucide-react';
 import { useAppContext } from '@/contexts/AppContext';
 import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import ReportDialog from '@/components/ReportDialog';
@@ -107,7 +107,7 @@ const StopwatchPerformance = () => {
 
     const allHistory = useMemo(() => {
         return state.profiles.flatMap(p => 
-            p.stopwatchHistory.map(h => ({...h, profileName: p.name}))
+            p.stopwatch.history.map(h => ({...h, profileName: p.name}))
         );
     }, [state.profiles]);
 
@@ -391,7 +391,7 @@ export default function AdminPage() {
                 <CardTitle className="flex items-center gap-2"><ShieldCheck /> Análises Consolidadas</CardTitle>
                 <CardDescription>
                     Gere análises detalhadas combinando os dados de todos os perfis para o dia mais recente.
-                     {!hasAI && <span className="text-amber-500 block mt-1"> (Funcionalidade Pro/Premium)</span>}
+                     {hasAI && <span className="text-amber-500 block mt-1"> (Funcionalidade Pro/Premium)</span>}
                      {!isOnline && <span className="text-amber-500 block mt-1"> (Requer Internet)</span>}
                 </CardDescription>
             </CardHeader>

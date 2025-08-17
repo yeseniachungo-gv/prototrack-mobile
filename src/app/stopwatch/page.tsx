@@ -52,12 +52,12 @@ export default function StopwatchPage() {
   
   if (!activeProfile) return null; // Safeguard
 
-  const { stopwatch: stopwatchState, id: profileId } = activeProfile;
-  const [stopwatch, setStopwatch] = useState(stopwatchState);
+  const { stopwatch, id: profileId } = activeProfile;
+  const [localStopwatch, setLocalStopwatch] = useState(stopwatch);
   
   // Update local state if global state for this profile changes
   useEffect(() => {
-    setStopwatch(activeProfile.stopwatch);
+    setLocalStopwatch(activeProfile.stopwatch);
   }, [activeProfile.stopwatch]);
 
   // Dispatch changes from local state to global state
@@ -66,7 +66,7 @@ export default function StopwatchPage() {
   }
 
   const handleStart = () => {
-    if (!stopwatch.session.operator.trim() || !stopwatch.session.functionName.trim()) {
+    if (!localStopwatch.session.operator.trim() || !localStopwatch.session.functionName.trim()) {
         toast({ title: 'Atenção', description: 'Preencha o nome do operador e a função para iniciar.', variant: 'destructive'});
         return;
     }
@@ -79,7 +79,7 @@ export default function StopwatchPage() {
   const handleUndoPiece = () => dispatch({ type: 'UNDO_PIECE', payload: { profileId } });
   
   const handleSetTime = (seconds: number) => {
-    if (!stopwatch.isRunning) {
+    if (!localStopwatch.isRunning) {
         dispatch({ type: 'SET_TIMER', payload: { profileId, seconds } });
     }
   }
@@ -93,27 +93,27 @@ export default function StopwatchPage() {
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { id, value } = e.target;
     const newSession = {
-        ...stopwatch.session,
+        ...localStopwatch.session,
         [id]: id === 'auxiliaryTimePercent' ? parseFloat(value) || 0 : value
     }
-    const newStopwatchState = { ...stopwatch, session: newSession };
-    setStopwatch(newStopwatchState);
+    const newStopwatchState = { ...localStopwatch, session: newSession };
+    setLocalStopwatch(newStopwatchState);
     syncState(newStopwatchState);
   };
   
-  const elapsedTime = stopwatch.mode === 'countup' 
-    ? stopwatch.time 
-    : stopwatch.initialTime - stopwatch.time;
+  const elapsedTime = localStopwatch.mode === 'countup' 
+    ? localStopwatch.time 
+    : localStopwatch.initialTime - localStopwatch.time;
 
-  const currentPph = elapsedTime > 0 ? (stopwatch.pieces / elapsedTime) * 3600 : 0;
+  const currentPph = elapsedTime > 0 ? (localStopwatch.pieces / elapsedTime) * 3600 : 0;
   
-  const adjustedPieces = stopwatch.pieces * (1 - (stopwatch.session.auxiliaryTimePercent / 100));
+  const adjustedPieces = localStopwatch.pieces * (1 - (localStopwatch.session.auxiliaryTimePercent / 100));
   const adjustedPph = elapsedTime > 0 ? (adjustedPieces / elapsedTime) * 3600 : 0;
   
-  const isFinished = stopwatch.mode === 'countdown' && stopwatch.time === 0 && !stopwatch.isRunning;
+  const isFinished = localStopwatch.mode === 'countdown' && localStopwatch.time === 0 && !localStopwatch.isRunning;
 
-  const progressBarWidth = stopwatch.mode === 'countdown' && stopwatch.initialTime > 0
-    ? 100 * (1 - (stopwatch.time / stopwatch.initialTime))
+  const progressBarWidth = localStopwatch.mode === 'countdown' && localStopwatch.initialTime > 0
+    ? 100 * (1 - (localStopwatch.time / localStopwatch.initialTime))
     : 0;
 
   return (
@@ -122,10 +122,10 @@ export default function StopwatchPage() {
       
       <Card>
         <CardContent className="p-4 space-y-4">
-           <Tabs value={stopwatch.mode} onValueChange={handleModeChange} className="w-full">
+           <Tabs value={localStopwatch.mode} onValueChange={handleModeChange} className="w-full">
               <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="countdown" disabled={stopwatch.isRunning}>Contagem Regressiva</TabsTrigger>
-                <TabsTrigger value="countup" disabled={stopwatch.isRunning}>Contagem Progressiva</TabsTrigger>
+                <TabsTrigger value="countdown" disabled={localStopwatch.isRunning}>Contagem Regressiva</TabsTrigger>
+                <TabsTrigger value="countup" disabled={localStopwatch.isRunning}>Contagem Progressiva</TabsTrigger>
               </TabsList>
             </Tabs>
 
@@ -135,10 +135,10 @@ export default function StopwatchPage() {
                 {timePresets.map(preset => (
                   <Button 
                       key={preset.seconds}
-                      variant={stopwatch.initialTime === preset.seconds && stopwatch.mode === 'countdown' ? "default" : "outline"}
+                      variant={localStopwatch.initialTime === preset.seconds && localStopwatch.mode === 'countdown' ? "default" : "outline"}
                       size="sm"
                       onClick={() => handleSetTime(preset.seconds)}
-                      disabled={stopwatch.isRunning || stopwatch.mode !== 'countdown'}
+                      disabled={localStopwatch.isRunning || localStopwatch.mode !== 'countdown'}
                   >
                       {preset.label}
                   </Button>
@@ -149,7 +149,7 @@ export default function StopwatchPage() {
             <div className="space-y-2">
                 <Label>Controles</Label>
                 <div className="flex justify-start gap-2 flex-wrap">
-                    {!stopwatch.isRunning ? (
+                    {!localStopwatch.isRunning ? (
                         <Button onClick={handleStart} className="w-32">
                             <Play className="mr-2"/> Iniciar
                         </Button>
@@ -158,7 +158,7 @@ export default function StopwatchPage() {
                             <Pause className="mr-2"/> Finalizar
                         </Button>
                     )}
-                    <Button variant="outline" onClick={handleReset} disabled={stopwatch.isRunning}>
+                    <Button variant="outline" onClick={handleReset} disabled={localStopwatch.isRunning}>
                         <RotateCcw className="mr-2"/> Reiniciar
                     </Button>
                 </div>
@@ -168,15 +168,18 @@ export default function StopwatchPage() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                     <Label htmlFor="operator">Operador</Label>
-                    <Input id="operator" placeholder="Nome do operador" value={stopwatch.session.operator} onChange={handleInputChange} disabled={stopwatch.isRunning}/>
+                    <Input id="operator" placeholder="Nome do operador" list="workers-list" value={localStopwatch.session.operator} onChange={handleInputChange} disabled={localStopwatch.isRunning}/>
+                    <datalist id="workers-list">
+                        {activeProfile.masterWorkers.map(w => <option key={w.id} value={w.name} />)}
+                    </datalist>
                 </div>
                 <div>
                     <Label htmlFor="functionName">Função</Label>
-                    <Input id="functionName" placeholder="Ex: Costura / Revisão" value={stopwatch.session.functionName} onChange={handleInputChange} disabled={stopwatch.isRunning}/>
+                    <Input id="functionName" placeholder="Ex: Costura / Revisão" value={localStopwatch.session.functionName} onChange={handleInputChange} disabled={localStopwatch.isRunning}/>
                 </div>
                  <div>
                     <Label htmlFor="auxiliaryTimePercent">Tempo auxiliar (%)</Label>
-                    <Input id="auxiliaryTimePercent" type="number" min="0" value={stopwatch.session.auxiliaryTimePercent} onChange={handleInputChange} disabled={stopwatch.isRunning}/>
+                    <Input id="auxiliaryTimePercent" type="number" min="0" value={localStopwatch.session.auxiliaryTimePercent} onChange={handleInputChange} disabled={localStopwatch.isRunning}/>
                 </div>
             </div>
 
@@ -187,9 +190,9 @@ export default function StopwatchPage() {
                       isFinished && "text-destructive"
                   )}
               >
-                  {formatTime(stopwatch.time)}
+                  {formatTime(localStopwatch.time)}
               </div>
-              {stopwatch.mode === 'countdown' && (
+              {localStopwatch.mode === 'countdown' && (
                   <div className="w-full bg-muted rounded-full h-2.5 mt-2">
                       <div className="bg-primary h-2.5 rounded-full" style={{width: `${progressBarWidth}%`}}></div>
                   </div>
@@ -199,11 +202,11 @@ export default function StopwatchPage() {
       </Card>
       
       <div className="flex justify-center items-center gap-4 my-4">
-        <Button size="icon" variant="outline" className="w-16 h-16 rounded-full" onClick={handleUndoPiece} disabled={stopwatch.pieces === 0}>
+        <Button size="icon" variant="outline" className="w-16 h-16 rounded-full" onClick={handleUndoPiece} disabled={localStopwatch.pieces === 0}>
             <Minus className="h-8 w-8"/>
         </Button>
-        <Button size="icon" className="w-24 h-24 rounded-full text-4xl font-bold relative" onClick={handleAddPiece} disabled={!stopwatch.isRunning}>
-            {stopwatch.pieces}
+        <Button size="icon" className="w-24 h-24 rounded-full text-4xl font-bold relative" onClick={handleAddPiece} disabled={!localStopwatch.isRunning}>
+            {localStopwatch.pieces}
             <Plus className="absolute bottom-4 right-4 h-6 w-6 opacity-75"/>
         </Button>
         <div className="w-16 h-16"></div>
@@ -217,19 +220,19 @@ export default function StopwatchPage() {
         <CardContent className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
             <div className="p-4 bg-muted rounded-lg">
                 <div className="text-sm text-muted-foreground">Peças</div>
-                <div className="text-2xl font-bold">{stopwatch.pieces}</div>
+                <div className="text-2xl font-bold">{localStopwatch.pieces}</div>
             </div>
             <div className="p-4 bg-muted rounded-lg">
                 <div className="text-sm text-muted-foreground">Média Peças/Hora</div>
                 <div className="text-2xl font-bold">{isFinite(currentPph) ? currentPph.toFixed(0) : 0}</div>
             </div>
              <div className="p-4 bg-muted rounded-lg">
-                <div className="text-sm text-muted-foreground">Média Ajustada ({stopwatch.session.auxiliaryTimePercent}%)</div>
+                <div className="text-sm text-muted-foreground">Média Ajustada ({localStopwatch.session.auxiliaryTimePercent}%)</div>
                 <div className="text-2xl font-bold">{isFinite(adjustedPph) ? adjustedPph.toFixed(0) : 0}</div>
             </div>
              <div className="p-4 bg-muted rounded-lg">
                 <div className="text-sm text-muted-foreground">Estado</div>
-                <div className={cn("text-2xl font-bold capitalize", isFinished && "text-destructive")}>{isFinished ? "Finalizado" : stopwatch.isRunning ? 'Medindo' : 'Pronto'}</div>
+                <div className={cn("text-2xl font-bold capitalize", isFinished && "text-destructive")}>{isFinished ? "Finalizado" : localStopwatch.isRunning ? 'Medindo' : 'Pronto'}</div>
             </div>
         </CardContent>
       </Card>
@@ -238,11 +241,11 @@ export default function StopwatchPage() {
         <CardHeader className="flex flex-row items-center justify-between">
             <div>
                 <CardTitle>Histórico do Dia</CardTitle>
-                <CardDescription>Últimas 25 medições.</CardDescription>
+                <CardDescription>Últimas 50 medições.</CardDescription>
             </div>
              <AlertDialog>
                 <AlertDialogTrigger asChild>
-                  <Button variant="destructive" size="sm" disabled={stopwatch.history.length === 0}>
+                  <Button variant="destructive" size="sm" disabled={localStopwatch.history.length === 0}>
                     <Trash2 className="mr-2 h-4 w-4" /> Limpar
                   </Button>
                 </AlertDialogTrigger>
@@ -263,7 +266,7 @@ export default function StopwatchPage() {
               </AlertDialog>
         </CardHeader>
         <CardContent>
-          {stopwatch.history.length > 0 ? (
+          {localStopwatch.history.length > 0 ? (
              <Table>
                 <TableHeader>
                     <TableRow>
@@ -276,7 +279,7 @@ export default function StopwatchPage() {
                     </TableRow>
                 </TableHeader>
                 <TableBody>
-                    {stopwatch.history.slice(0, 25).map((entry) => (
+                    {localStopwatch.history.slice(0, 50).map((entry) => (
                         <TableRow key={entry.id}>
                             <TableCell className="font-medium">{entry.workerName}</TableCell>
                             <TableCell>{entry.functionName}</TableCell>

@@ -133,12 +133,15 @@ export default function FunctionSheet({ isOpen, onClose, func, dayId }: Function
   };
   
   const handleAddWorker = () => {
-    if (newWorkerName) {
-      dispatch({ type: 'ADD_WORKER_TO_FUNCTION', payload: { dayId, functionId: func.id, workerName: newWorkerName }});
-      toast({ title: `Trabalhador "${newWorkerName}" adicionado!` });
+    if (newWorkerName.trim()) {
+       // First, ensure the worker exists in the master list
+      dispatch({ type: 'ADD_MASTER_DATA', payload: { type: 'workers', name: newWorkerName.trim() }});
+      // Then, add the worker to the current function
+      dispatch({ type: 'ADD_WORKER_TO_FUNCTION', payload: { dayId, functionId: func.id, workerName: newWorkerName.trim() }});
+      toast({ title: `Trabalhador "${newWorkerName.trim()}" adicionado!` });
       setNewWorkerName('');
     } else {
-       toast({ title: "Erro", description: "Selecione um trabalhador para adicionar.", variant: "destructive" });
+       toast({ title: "Erro", description: "Selecione ou digite o nome de um trabalhador para adicionar.", variant: "destructive" });
     }
   };
    
@@ -278,18 +281,18 @@ export default function FunctionSheet({ isOpen, onClose, func, dayId }: Function
 
         <DialogFooter className="p-2 sm:p-0 mt-4 flex-wrap gap-2 justify-between">
              <div className="flex gap-2 items-center">
-                <Select value={newWorkerName} onValueChange={setNewWorkerName}>
-                    <SelectTrigger className="h-10 w-[200px]">
-                        <SelectValue placeholder="Selecione um trabalhador" />
-                    </SelectTrigger>
-                    <SelectContent>
-                        {availableWorkers.length > 0 ? (
-                             availableWorkers.map(w => <SelectItem key={w.id} value={w.name}>{w.name}</SelectItem>)
-                        ) : (
-                            <div className="p-2 text-center text-sm text-muted-foreground">Todos já foram adicionados.</div>
-                        )}
-                    </SelectContent>
-                </Select>
+                 <div className="flex-1">
+                    <Input 
+                        list="master-workers" 
+                        placeholder="Adicionar trabalhador"
+                        value={newWorkerName}
+                        onChange={e => setNewWorkerName(e.target.value)}
+                        onKeyDown={e => e.key === 'Enter' && handleAddWorker()}
+                    />
+                     <datalist id="master-workers">
+                        {availableWorkers.map(w => <option key={w.id} value={w.name} />)}
+                    </datalist>
+                </div>
                 <Button variant="outline" size="sm" onClick={handleAddWorker}><Plus className="mr-2 h-4 w-4"/>Trabalhador</Button>
                 <Button variant="outline" size="sm" onClick={handleAddHour}><Plus className="mr-2 h-4 w-4"/>Hora</Button>
             </div>

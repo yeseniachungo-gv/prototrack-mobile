@@ -95,7 +95,6 @@ const createDefaultProfile = (name: string): Profile => {
             { id: uuidv4(), name: 'Pausa prolongada' },
             { id: uuidv4(), name: 'Outro' },
         ],
-        stopwatchHistory: [],
         stopwatch: createDefaultStopwatchState()
     };
 };
@@ -107,7 +106,6 @@ function getInitialState(): AppState {
     activeProfileId: null, 
     currentProfileForLogin: null,
     theme: 'dark',
-    stopwatch: createDefaultStopwatchState(), // Legacy, keep for migration
     announcements: [],
   };
 }
@@ -142,7 +140,7 @@ const appReducer = produce((draft: AppState, action: Action) => {
                 auxiliaryTimePercent: session.auxiliaryTimePercent,
                 adjustedAveragePerHour: adjustedPph,
             };
-            profile.stopwatchHistory.unshift(newEntry);
+            profile.stopwatch.history.unshift(newEntry);
         }
     };
     
@@ -302,7 +300,7 @@ const appReducer = produce((draft: AppState, action: Action) => {
         case 'CLEAR_STOPWATCH_HISTORY': {
             const profile = draft.profiles.find(p => p.id === action.payload.profileId);
             if (profile) {
-                profile.stopwatchHistory = [];
+                profile.stopwatch.history = [];
             }
             break;
         }
@@ -504,17 +502,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           if (!p.masterWorkers) p.masterWorkers = createDefaultProfile('').masterWorkers;
           if (!p.masterStopReasons) p.masterStopReasons = createDefaultProfile('').masterStopReasons;
           if (!p.stopwatch) p.stopwatch = createDefaultStopwatchState();
-          if (!p.stopwatchHistory) p.stopwatchHistory = [];
           
           p.stopwatch.isRunning = false;
           p.stopwatch.time = p.stopwatch.mode === 'countdown' ? p.stopwatch.initialTime : 0;
           p.stopwatch.pieces = 0;
         });
-
-        if (savedState.stopwatch) { // Migrate global stopwatch to profiles
-            savedState.profiles[0].stopwatchHistory.push(...savedState.stopwatch.history);
-            delete savedState.stopwatch;
-        }
 
         savedState.activeProfileId = null;
         savedState.currentProfileForLogin = null;
@@ -538,7 +530,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (isInitialized) {
       try {
         const stateToSave = JSON.parse(JSON.stringify(state));
-        delete stateToSave.stopwatch; // Remove legacy global stopwatch state
         localStorage.setItem(APP_STATE_KEY, JSON.stringify(stateToSave));
       } catch (e) { console.error("Failed to save state.", e) }
     }
