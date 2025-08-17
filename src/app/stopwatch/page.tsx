@@ -1,7 +1,7 @@
 // src/app/stopwatch/page.tsx
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Header from '@/components/Header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -83,8 +83,8 @@ export default function StopwatchPage() {
         <CardContent className="p-4 space-y-4">
            <Tabs value={stopwatch.mode} onValueChange={handleModeChange} className="w-full">
               <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="countdown">Contagem Regressiva</TabsTrigger>
-                <TabsTrigger value="countup">Contagem Progressiva</TabsTrigger>
+                <TabsTrigger value="countdown" disabled={stopwatch.isRunning}>Contagem Regressiva</TabsTrigger>
+                <TabsTrigger value="countup" disabled={stopwatch.isRunning}>Contagem Progressiva</TabsTrigger>
               </TabsList>
               <TabsContent value={stopwatch.mode} className="pt-4">
                 <div className="grid grid-cols-2 gap-4">
@@ -151,7 +151,7 @@ export default function StopwatchPage() {
             <Button size="lg" onClick={handleToggleTimer} className="w-40" disabled={!canStart}>
               {stopwatch.isRunning ? <><Pause className="mr-2"/> Parar</> : <><Play className="mr-2"/> Iniciar</>}
             </Button>
-            <Button size="lg" variant="destructive" onClick={handleResetTimer} disabled={!stopwatch.isRunning && ((stopwatch.mode === 'countdown' && stopwatch.time === stopwatch.initialTime) || (stopwatch.mode === 'countup' && stopwatch.time === 0)) && stopwatch.pieces === 0}>
+            <Button size="lg" variant="destructive" onClick={handleResetTimer} disabled={stopwatch.isRunning}>
                 <RotateCcw className="mr-2"/> Zerar
             </Button>
           </div>
