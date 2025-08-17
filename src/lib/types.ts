@@ -1,3 +1,4 @@
+
 export interface Observation {
   reason: string;
   detail: string;
@@ -23,6 +24,11 @@ export interface StopwatchHistoryEntry {
     endTime: string; // ISO string
     duration: number; // in seconds
     pieces: number;
+    workerName: string;
+    functionName: string;
+    auxiliaryTimePercent: number;
+    averagePerHour: number;
+    adjustedAveragePerHour: number;
 }
 
 export interface StopwatchState {
@@ -39,5 +45,3 @@ export interface AppState {
   theme: 'light' | 'dark';
   stopwatch: StopwatchState;
 }
-
-    

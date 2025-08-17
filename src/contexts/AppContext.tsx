@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { createContext, useReducer, useContext, useEffect, useRef } from 'react';
@@ -20,7 +21,7 @@ type Action =
   | { type: 'UPDATE_PIECES', payload: { dayId: string; functionId: string; worker: string; hour: string; value: number } }
   | { type: 'UPDATE_OBSERVATION', payload: { dayId: string; functionId: string; worker: string; hour: string; reason: string; detail: string; minutesStopped?: number } }
   | { type: 'SET_TIMER', payload: number }
-  | { type: 'TOGGLE_TIMER' }
+  | { type: 'TOGGLE_TIMER', payload: { operator: string, functionName: string, auxiliaryTimePercent: number } }
   | { type: 'RESET_TIMER' }
   | { type: 'TICK' }
   | { type: 'ADD_PIECE', payload: number };
@@ -117,12 +118,24 @@ const appReducer = (state: AppState, action: Action): AppState => {
             draft.stopwatch.isRunning = !draft.stopwatch.isRunning;
           }
           if (!draft.stopwatch.isRunning && draft.stopwatch.pieces > 0) {
-              // Adicionar ao histórico quando o timer para
+              const { operator, functionName, auxiliaryTimePercent } = action.payload;
+              const duration = draft.stopwatch.initialTime;
+              const pieces = draft.stopwatch.pieces;
+              
+              const pph = duration > 0 ? (pieces / duration) * 3600 : 0;
+              const effectiveTime = duration * (1 - (auxiliaryTimePercent / 100));
+              const adjustedPph = effectiveTime > 0 ? (pieces / effectiveTime) * 3600 : pph;
+
               draft.stopwatch.history.unshift({
                   id: uuidv4(),
                   endTime: new Date().toISOString(),
-                  duration: draft.stopwatch.initialTime, // Salva o tempo original
-                  pieces: draft.stopwatch.pieces
+                  duration: duration, 
+                  pieces: pieces,
+                  workerName: operator,
+                  functionName: functionName,
+                  auxiliaryTimePercent: auxiliaryTimePercent,
+                  averagePerHour: pph,
+                  adjustedAveragePerHour: adjustedPph,
               });
               // Resetar para a próxima medição
               draft.stopwatch.time = draft.stopwatch.initialTime;
@@ -144,16 +157,7 @@ const appReducer = (state: AppState, action: Action): AppState => {
               draft.stopwatch.time -= 1;
               if (draft.stopwatch.time === 0) {
                 draft.stopwatch.isRunning = false;
-                 // Adicionar ao histórico
-                draft.stopwatch.history.unshift({
-                    id: uuidv4(),
-                    endTime: new Date().toISOString(),
-                    duration: draft.stopwatch.initialTime,
-                    pieces: draft.stopwatch.pieces
-                });
-                // Resetar para a próxima medição
-                draft.stopwatch.pieces = 0;
-                // Deixa o `time` em 0 para mostrar que acabou
+                // O toggle fará o salvamento do histórico, apenas para a contagem
               }
           }
           return;
@@ -258,7 +262,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const savedStateString = localStorage.getItem(APP_STATE_KEY);
       if (savedStateString) {
         const savedState = JSON.parse(savedStateString);
-        savedState.stopwatch = getInitialState().stopwatch; // Cronômetro não persiste
+        // Garante que a estrutura do cronômetro seja sempre a mais recente ao carregar
+        savedState.stopwatch = getInitialState().stopwatch; 
+        if(savedState.days === undefined) {
+          return getInitialState();
+        }
         return savedState;
       }
     } catch (e) {
@@ -281,8 +289,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (isInitialized) {
       try {
         const stateToSave = { ...state };
-        // Não salva o estado em tempo real do cronômetro, apenas o histórico
-        const stopwatchStateToSave = { ...getInitialState().stopwatch, history: state.stopwatch.history };
+        // Não salva o estado em tempo real do cronômetro, apenas o histórico e as configurações gerais
+        const stopwatchStateToSave = {
+            ...getInitialState().stopwatch, // Pega o estado inicial limpo
+            history: state.stopwatch.history, // Mantém o histórico
+            initialTime: state.stopwatch.initialTime // Mantém a última seleção de tempo
+        };
         (stateToSave as any).stopwatch = stopwatchStateToSave;
         
         localStorage.setItem(APP_STATE_KEY, JSON.stringify(stateToSave));
@@ -342,5 +354,3 @@ export const useAppContext = () => {
   }
   return context;
 };
-
-    

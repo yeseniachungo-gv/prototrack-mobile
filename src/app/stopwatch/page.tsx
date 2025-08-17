@@ -1,13 +1,16 @@
+
 "use client";
 
-import React from 'react';
+import React, { useState } from 'react';
 import Header from '@/components/Header';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useAppContext } from '@/contexts/AppContext';
 import { Play, Pause, RotateCcw } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { cn } from '@/lib/utils';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 
 // Função para formatar o tempo de segundos para MM:SS
 const formatTime = (timeInSeconds: number) => {
@@ -28,9 +31,17 @@ const timePresets = [
 export default function StopwatchPage() {
   const { state, dispatch } = useAppContext();
   const { stopwatch } = state;
+  
+  // Estados locais para os inputs
+  const [operator, setOperator] = useState('');
+  const [func, setFunc] = useState('');
+  const [auxTime, setAuxTime] = useState(8.3); // Padrão 8.3% (5 min/hora)
 
   const handleToggleTimer = () => {
-    dispatch({ type: 'TOGGLE_TIMER' });
+    dispatch({ 
+        type: 'TOGGLE_TIMER', 
+        payload: { operator, functionName: func, auxiliaryTimePercent: auxTime }
+    });
   };
 
   const handleResetTimer = () => {
@@ -48,13 +59,37 @@ export default function StopwatchPage() {
   }
 
   const pph = stopwatch.initialTime > 0 ? (stopwatch.pieces / stopwatch.initialTime) * 3600 : 0;
+  const effectiveTime = stopwatch.initialTime * (1 - (auxTime / 100));
+  const adjustedPph = effectiveTime > 0 ? (stopwatch.pieces / effectiveTime) * 3600 : pph;
   const isFinished = stopwatch.time === 0 && !stopwatch.isRunning && stopwatch.history.length > 0;
 
   return (
     <div className="p-4 md:p-6 space-y-4">
-      <Header title="Cronômetro Regressivo" />
+      <Header title="Cronômetro de Produção" />
+      
+      <Card>
+        <CardContent className="p-4 space-y-4">
+           <div className="grid grid-cols-2 gap-4">
+                <div>
+                    <Label htmlFor="operador">Operador</Label>
+                    <Input id="operador" placeholder="Nome do operador" value={operator} onChange={e => setOperator(e.target.value)} disabled={stopwatch.isRunning}/>
+                </div>
+                <div>
+                    <Label htmlFor="funcao">Função</Label>
+                    <Input id="funcao" placeholder="Ex: Reta / Revisão" value={func} onChange={e => setFunc(e.target.value)} disabled={stopwatch.isRunning}/>
+                </div>
+           </div>
+            <div>
+                 <Label htmlFor="aux-time">Tempo Auxiliar (%)</Label>
+                 <Input id="aux-time" type="number" value={auxTime} onChange={e => setAuxTime(parseFloat(e.target.value) || 0)} disabled={stopwatch.isRunning}/>
+            </div>
+        </CardContent>
+      </Card>
       
       <Card className="text-center">
+        <CardHeader>
+            <CardTitle>Intervalo de Medição</CardTitle>
+        </CardHeader>
         <CardContent className="p-6">
            <div className="flex justify-center gap-2 mb-4 flex-wrap">
               {timePresets.map(preset => (
@@ -75,17 +110,21 @@ export default function StopwatchPage() {
                 "text-8xl font-bold font-mono text-primary mb-4 transition-colors duration-300",
                 isFinished && "text-destructive"
              )}
-             onClick={handlePieceClick}
            >
             {formatTime(stopwatch.time)}
           </div>
           
           <div className="flex items-center justify-center gap-4 mb-6">
-             <div className="text-4xl font-bold w-24 text-center">{stopwatch.pieces}</div>
+             <div 
+                className="text-5xl font-bold w-32 text-center bg-muted rounded-lg p-2 cursor-pointer select-none"
+                onClick={handlePieceClick}
+             >
+                {stopwatch.pieces}
+             </div>
           </div>
           
           <div className="flex justify-center gap-2">
-            <Button size="lg" onClick={handleToggleTimer} className="w-40" disabled={stopwatch.time === 0}>
+            <Button size="lg" onClick={handleToggleTimer} className="w-40" disabled={stopwatch.time === 0 || !operator || !func}>
               {stopwatch.isRunning ? <><Pause className="mr-2"/> Parar</> : <><Play className="mr-2"/> Iniciar</>}
             </Button>
             <Button size="lg" variant="destructive" onClick={handleResetTimer} disabled={stopwatch.time === stopwatch.initialTime && stopwatch.pieces === 0}>
@@ -101,12 +140,12 @@ export default function StopwatchPage() {
         </CardHeader>
         <CardContent className="grid grid-cols-2 gap-4 text-center">
             <div className="p-4 bg-muted rounded-lg">
-                <div className="text-sm text-muted-foreground">Peças/Hora (Proj.)</div>
+                <div className="text-sm text-muted-foreground">Média Peças/Hora</div>
                 <div className="text-2xl font-bold">{pph.toFixed(0)}</div>
             </div>
              <div className="p-4 bg-muted rounded-lg">
-                <div className="text-sm text-muted-foreground">Tempo Total</div>
-                <div className="text-2xl font-bold">{formatTime(stopwatch.initialTime)}</div>
+                <div className="text-sm text-muted-foreground">Média Ajustada (-{auxTime}%)</div>
+                <div className="text-2xl font-bold">{adjustedPph.toFixed(0)}</div>
             </div>
         </CardContent>
       </Card>
@@ -120,17 +159,19 @@ export default function StopwatchPage() {
              <Table>
                 <TableHeader>
                     <TableRow>
-                        <TableHead>Hora Fim</TableHead>
+                        <TableHead>Operador</TableHead>
+                        <TableHead>Função</TableHead>
                         <TableHead className="text-center">Peças</TableHead>
-                        <TableHead className="text-right">Duração</TableHead>
+                        <TableHead className="text-right">Média/h (Ajust.)</TableHead>
                     </TableRow>
                 </TableHeader>
                 <TableBody>
                     {stopwatch.history.map((entry) => (
                         <TableRow key={entry.id}>
-                            <TableCell>{new Date(entry.endTime).toLocaleTimeString('pt-BR')}</TableCell>
+                            <TableCell className="font-medium">{entry.workerName}</TableCell>
+                            <TableCell>{entry.functionName}</TableCell>
                             <TableCell className="text-center">{entry.pieces}</TableCell>
-                            <TableCell className="text-right">{formatTime(entry.duration)}</TableCell>
+                            <TableCell className="text-right font-mono">{entry.adjustedAveragePerHour.toFixed(0)}</TableCell>
                         </TableRow>
                     ))}
                 </TableBody>
@@ -143,5 +184,3 @@ export default function StopwatchPage() {
     </div>
   );
 }
-
-    
