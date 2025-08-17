@@ -97,13 +97,14 @@ export default function StopwatchPage() {
     }));
   };
 
-  const currentPph = stopwatch.mode === 'countup' 
-    ? stopwatch.time > 0 ? (stopwatch.pieces / stopwatch.time) * 3600 : 0
-    : stopwatch.initialTime - stopwatch.time > 0 
-    ? (stopwatch.pieces / (stopwatch.initialTime - stopwatch.time)) * 3600
-    : 0;
+  const elapsedTime = stopwatch.mode === 'countup' 
+    ? stopwatch.time 
+    : stopwatch.initialTime - stopwatch.time;
 
-  const adjustedPph = currentPph / (1 - (sessionDetails.auxiliaryTimePercent / 100) || 1);
+  const currentPph = elapsedTime > 0 ? (stopwatch.pieces / elapsedTime) * 3600 : 0;
+  
+  const adjustedPieces = stopwatch.pieces * (1 - (sessionDetails.auxiliaryTimePercent / 100));
+  const adjustedPph = elapsedTime > 0 ? (adjustedPieces / elapsedTime) * 3600 : 0;
   
   const isFinished = stopwatch.mode === 'countdown' && stopwatch.time === 0 && !stopwatch.isRunning;
 
