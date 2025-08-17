@@ -1,11 +1,9 @@
 'use server';
 
 /**
- * @fileOverview This file defines a Genkit flow for suggesting related resources
- * (functions, checklists, team members) based on existing entries to help
- * prototype creators quickly populate new entries, improve consistency, and reduce manual input.
- *
- * @module src/ai/flows/suggest-related-resources
+ * @fileOverview Este arquivo define um fluxo Genkit para sugerir recursos 
+ * (trabalhadores, checklists, etc.) com base em funções de produção existentes, 
+ * ajudando a acelerar a criação de novas tarefas e a manter a consistência.
  *
  * @exports {
  *   suggestRelatedResources: function
@@ -18,60 +16,55 @@ import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 
 /**
- * Input schema for the suggestRelatedResources flow.
+ * Schema de entrada para o fluxo suggestRelatedResources.
  */
 const SuggestRelatedResourcesInputSchema = z.object({
-  existingEntries: z
+  existingFunctionsAndWorkers: z
     .string()
     .describe(
-      'A string containing a summary of existing entries, including functions, checklists, and team members.
-       This information will be used to find resources related to the new entry being created.'
+      'Uma string JSON contendo um resumo das funções de produção existentes e os trabalhadores associados a elas. Ex: `[{"functionName": "Costura Reta", "workers": ["Maria", "João"]}]`.'
     ),
-  newEntryDescription: z
+  newFunctionName: z
     .string()
-    .describe('A description of the new entry being created.'),
+    .describe('O nome da nova função de produção que está sendo criada. Ex: "Inspeção de Qualidade".'),
 });
 
 /**
  * @typedef {object} SuggestRelatedResourcesInput
- * @property {string} existingEntries - A string containing a summary of existing entries.
- * @property {string} newEntryDescription - A description of the new entry being created.
+ * @property {string} existingFunctionsAndWorkers - Resumo das funções e trabalhadores existentes.
+ * @property {string} newFunctionName - Nome da nova função a ser criada.
  */
 export type SuggestRelatedResourcesInput = z.infer<
   typeof SuggestRelatedResourcesInputSchema
 >;
 
 /**
- * Output schema for the suggestRelatedResources flow.
+ * Schema de saída para o fluxo suggestRelatedResources.
  */
 const SuggestRelatedResourcesOutputSchema = z.object({
-  suggestedFunctions: z
+  suggestedWorkers: z
     .string()
-    .describe('A comma-separated list of suggested functions.'),
-  suggestedChecklists: z
+    .describe('Uma lista separada por vírgulas dos trabalhadores sugeridos para a nova função.'),
+  reasoning: z
     .string()
-    .describe('A comma-separated list of suggested checklists.'),
-  suggestedTeamMembers: z
-    .string()
-    .describe('A comma-separated list of suggested team members.'),
+    .describe('Uma breve explicação do porquê esses trabalhadores foram sugeridos.'),
 });
 
 /**
  * @typedef {object} SuggestRelatedResourcesOutput
- * @property {string} suggestedFunctions - A comma-separated list of suggested functions.
- * @property {string} suggestedChecklists - A comma-separated list of suggested checklists.
- * @property {string} suggestedTeamMembers - A comma-separated list of suggested team members.
+ * @property {string} suggestedWorkers - Lista de trabalhadores sugeridos.
+ * @property {string} reasoning - A justificativa para a sugestão.
  */
 export type SuggestRelatedResourcesOutput = z.infer<
   typeof SuggestRelatedResourcesOutputSchema
 >;
 
 /**
- * This function calls the suggestRelatedResourcesFlow to get suggestions for
- * related resources based on existing entries and a description of a new entry.
+ * Esta função chama o fluxo de IA para obter sugestões de recursos
+ * com base nas funções existentes e na descrição de uma nova.
  *
- * @param {SuggestRelatedResourcesInput} input - The input to the flow.
- * @returns {Promise<SuggestRelatedResourcesOutput>} - A promise that resolves to the output of the flow.
+ * @param {SuggestRelatedResourcesInput} input - A entrada para o fluxo.
+ * @returns {Promise<SuggestRelatedResourcesOutput>} - Uma promessa que resolve com a saída do fluxo.
  */
 export async function suggestRelatedResources(
   input: SuggestRelatedResourcesInput
@@ -83,13 +76,20 @@ const prompt = ai.definePrompt({
   name: 'suggestRelatedResourcesPrompt',
   input: {schema: SuggestRelatedResourcesInputSchema},
   output: {schema: SuggestRelatedResourcesOutputSchema},
-  prompt: `Based on the following existing entries: {{{existingEntries}}},
-  and the description of the new entry: {{{newEntryDescription}}},
-  suggest related functions, checklists, and team members that would be relevant to the new entry.
-  Return the suggestions as comma-separated lists.
-  Functions: {{suggestedFunctions}}
-  Checklists: {{suggestedChecklists}}
-  Team Members: {{suggestedTeamMembers}}`,
+  prompt: `Você é um assistente de gestão de produção para uma fábrica de confecção.
+Sua tarefa é sugerir os trabalhadores mais adequados para uma nova função de produção, com base na estrutura existente.
+
+**Contexto Atual (Funções e Trabalhadores Atuais):**
+{{{existingFunctionsAndWorkers}}}
+
+**Nova Função a ser Criada:**
+"{{{newFunctionName}}}"
+
+Analise o nome da nova função e, com base nas habilidades implícitas dos trabalhadores nas funções existentes, sugira uma lista de trabalhadores para esta nova tarefa. Forneça uma breve justificativa para sua escolha.
+
+Por exemplo, se a nova função é "Revisão de Peças", você pode sugerir trabalhadores que já estão em funções como "Acabamento" ou "Inspeção".
+
+Responda apenas com o JSON de saída solicitado.`,
 });
 
 const suggestRelatedResourcesFlow = ai.defineFlow(
