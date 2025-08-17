@@ -3,7 +3,7 @@
 
 import React, { createContext, useReducer, useContext, useEffect, useRef } from 'react';
 import { produce } from 'immer';
-import type { AppState, Day, FunctionEntry, Observation, StopwatchState } from '@/lib/types';
+import type { AppState, Day, FunctionEntry, Observation, StopwatchState, Profile } from '@/lib/types';
 import { v4 as uuidv4 } from 'uuid';
 
 type Action =
@@ -26,31 +26,46 @@ type Action =
   | { type: 'TICK' }
   | { type: 'ADD_PIECE', payload: number }
   | { type: 'SET_STOPWATCH_MODE', payload: 'countdown' | 'countup' }
-  | { type: 'UPDATE_DAILY_GOAL', payload: { goal: number; functionId: string | null } };
+  | { type: 'UPDATE_DAILY_GOAL', payload: { goal: number; functionId: string | null } }
+  | { type: 'ADD_PROFILE'; payload: string }
+  | { type: 'DELETE_PROFILE'; payload: string }
+  | { type: 'SET_ACTIVE_PROFILE'; payload: string };
 
 
-const APP_STATE_KEY = 'prototrack-state-v2';
+const APP_STATE_KEY = 'prototrack-state-v3';
+
+const createDefaultProfile = (name: string): Profile => {
+    const today = new Date().toISOString().split('T')[0];
+    const defaultHours = Array.from({ length: 10 }, (_, i) => `${String(i + 8).padStart(2, '0')}:00`);
+    const defaultWorkers = Array.from({ length: 3 }, (_, i) => `Trabalhador ${i + 1}`);
+
+    return {
+        id: uuidv4(),
+        name,
+        days: [{
+            id: today,
+            functions: [{
+                id: uuidv4(),
+                name: "Função Exemplo",
+                workers: defaultWorkers,
+                hours: defaultHours,
+                pieces: {},
+                observations: {}
+            }]
+        }],
+        activeDayId: today,
+        dailyGoal: {
+            target: 5000,
+            functionId: null,
+        }
+    };
+};
+
 
 function getInitialState(): AppState {
-  const today = new Date().toISOString().split('T')[0];
-  const defaultHours = Array.from({ length: 10 }, (_, i) => `${String(i + 8).padStart(2, '0')}:00`);
-  const defaultWorkers = Array.from({ length: 3 }, (_, i) => `Trabalhador ${i + 1}`);
-
   return {
-    days: [{ 
-      id: today, 
-      functions: [
-        {
-          id: uuidv4(),
-          name: "Função Exemplo",
-          workers: defaultWorkers,
-          hours: defaultHours,
-          pieces: {},
-          observations: {}
-        }
-      ] 
-    }],
-    activeDayId: today,
+    profiles: [createDefaultProfile('Perfil Padrão')],
+    activeProfileId: null, // Será definido para o primeiro perfil no carregamento
     theme: 'dark',
     stopwatch: {
         mode: 'countdown',
@@ -60,65 +75,71 @@ function getInitialState(): AppState {
         isRunning: false,
         history: []
     },
-    dailyGoal: {
-      target: 5000,
-      functionId: null,
-    }
   };
 }
 
 const AppContext = createContext<{
   state: AppState;
   dispatch: React.Dispatch<Action>;
+  activeProfile: Profile | null;
   activeDay: Day | null;
 } | undefined>(undefined);
 
 
 const appReducer = (state: AppState, action: Action): AppState => {
   return produce(state, draft => {
-    // Ações que não dependem de um dia ativo
+    // Ações que não dependem de um perfil ativo
     switch (action.type) {
       case 'TOGGLE_THEME':
         draft.theme = draft.theme === 'dark' ? 'light' : 'dark';
         return;
-      case 'SET_STATE':
-        // Ao restaurar, mantém o histórico do cronômetro local, se houver
+      case 'SET_STATE': {
         const localStopwatchHistory = draft.stopwatch.history;
         const restoredState = action.payload;
+        
+        // Garante que o estado antigo (v2) seja migrado para o novo (v3 com perfis)
+        if (!restoredState.profiles) {
+          const defaultProfile = createDefaultProfile('Perfil Restaurado');
+          defaultProfile.days = restoredState.days || [];
+          defaultProfile.activeDayId = restoredState.activeDayId || null;
+          defaultProfile.dailyGoal = restoredState.dailyGoal || getInitialState().profiles[0].dailyGoal;
+          
+          restoredState.profiles = [defaultProfile];
+          restoredState.activeProfileId = defaultProfile.id;
+          delete (restoredState as any).days;
+          delete (restoredState as any).activeDayId;
+          delete (restoredState as any).dailyGoal;
+        }
+
         restoredState.stopwatch = getInitialState().stopwatch;
         restoredState.stopwatch.history = localStopwatchHistory;
         return restoredState;
-      case 'SET_ACTIVE_DAY':
-        if (draft.days.find(d => d.id === action.payload)) {
-          draft.activeDayId = action.payload;
-        }
-        return;
-      case 'ADD_DAY': {
-        const lastDayInState = draft.days.reduce((latest, day) => new Date(day.id) > new Date(latest.id) ? day : latest, draft.days[0]);
-        const nextDay = new Date(lastDayInState.id + 'T00:00:00');
-        nextDay.setDate(nextDay.getDate() + 1);
-        const newDayId = nextDay.toISOString().split('T')[0];
-        
-        if (!draft.days.find(d => d.id === newDayId)) {
-          const functionsTemplate: FunctionEntry[] = JSON.parse(JSON.stringify(lastDayInState.functions));
-          functionsTemplate.forEach((func) => {
-            func.id = uuidv4();
-            func.pieces = {};
-            func.observations = {};
-          });
-          
-          const newDay: Day = { id: newDayId, functions: functionsTemplate };
-          draft.days.push(newDay);
-          draft.days.sort((a, b) => new Date(a.id).getTime() - new Date(b.id).getTime());
-          draft.activeDayId = newDayId;
+      }
+      case 'ADD_PROFILE': {
+        if (!draft.profiles.find(p => p.name.toLowerCase() === action.payload.toLowerCase())) {
+          const newProfile = createDefaultProfile(action.payload);
+          draft.profiles.push(newProfile);
+          draft.activeProfileId = newProfile.id;
         }
         return;
       }
-      case 'UPDATE_DAILY_GOAL':
-        draft.dailyGoal.target = action.payload.goal;
-        draft.dailyGoal.functionId = action.payload.functionId;
+      case 'DELETE_PROFILE': {
+        if (draft.profiles.length > 1) {
+          const profileIndex = draft.profiles.findIndex(p => p.id === action.payload);
+          if (profileIndex > -1) {
+            draft.profiles.splice(profileIndex, 1);
+            if (draft.activeProfileId === action.payload) {
+              draft.activeProfileId = draft.profiles[0].id;
+            }
+          }
+        }
         return;
-      // Ações do Cronômetro
+      }
+      case 'SET_ACTIVE_PROFILE':
+        draft.activeProfileId = action.payload;
+        return;
+      
+      // Ações do Cronômetro (não dependem do perfil)
       case 'SET_STOPWATCH_MODE':
           draft.stopwatch.isRunning = false;
           draft.stopwatch.pieces = 0;
@@ -139,7 +160,6 @@ const appReducer = (state: AppState, action: Action): AppState => {
           const { operator, functionName, auxiliaryTimePercent } = action.payload;
           const wasRunning = draft.stopwatch.isRunning;
 
-          // Se estava rodando, vamos parar e salvar
           if (wasRunning) {
               draft.stopwatch.isRunning = false;
               const duration = draft.stopwatch.mode === 'countdown' 
@@ -164,7 +184,6 @@ const appReducer = (state: AppState, action: Action): AppState => {
                      adjustedAveragePerHour: adjustedPph,
                  });
               }
-              // Resetar para a próxima medição
               if (draft.stopwatch.mode === 'countdown') {
                   draft.stopwatch.time = draft.stopwatch.initialTime;
               } else {
@@ -172,7 +191,7 @@ const appReducer = (state: AppState, action: Action): AppState => {
               }
               draft.stopwatch.pieces = 0;
 
-          } else { // Se estava parado, vamos iniciar
+          } else { 
               draft.stopwatch.isRunning = true;
           }
           return;
@@ -199,7 +218,6 @@ const appReducer = (state: AppState, action: Action): AppState => {
                   }
                   if (draft.stopwatch.time === 0) {
                       draft.stopwatch.isRunning = false;
-                      // A finalização e o salvamento são acionados pelo próximo TOGGLE_TIMER
                   }
               } else { // countup
                   draft.stopwatch.time += 1;
@@ -208,8 +226,52 @@ const appReducer = (state: AppState, action: Action): AppState => {
           return;
     }
 
-    // Ações que OPERAM sobre um dia (e possivelmente uma função)
-    const day = draft.days.find(d => d.id === draft.activeDayId);
+    const activeProfile = draft.profiles.find(p => p.id === draft.activeProfileId);
+    if (!activeProfile) return;
+
+    // Ações que dependem de um perfil ativo
+    switch (action.type) {
+        case 'SET_ACTIVE_DAY':
+            if (activeProfile.days.find(d => d.id === action.payload)) {
+                activeProfile.activeDayId = action.payload;
+            }
+            return;
+        case 'ADD_DAY': {
+            if (activeProfile.days.length === 0) {
+                const today = new Date().toISOString().split('T')[0];
+                activeProfile.days.push({ id: today, functions: [] });
+                activeProfile.activeDayId = today;
+                return;
+            }
+
+            const lastDayInState = activeProfile.days.reduce((latest, day) => new Date(day.id) > new Date(latest.id) ? day : latest, activeProfile.days[0]);
+            const nextDay = new Date(lastDayInState.id + 'T00:00:00');
+            nextDay.setDate(nextDay.getDate() + 1);
+            const newDayId = nextDay.toISOString().split('T')[0];
+
+            if (!activeProfile.days.find(d => d.id === newDayId)) {
+                const functionsTemplate: FunctionEntry[] = JSON.parse(JSON.stringify(lastDayInState.functions));
+                functionsTemplate.forEach((func) => {
+                    func.id = uuidv4();
+                    func.pieces = {};
+                    func.observations = {};
+                });
+                
+                const newDay: Day = { id: newDayId, functions: functionsTemplate };
+                activeProfile.days.push(newDay);
+                activeProfile.days.sort((a, b) => new Date(a.id).getTime() - new Date(b.id).getTime());
+                activeProfile.activeDayId = newDayId;
+            }
+            return;
+        }
+        case 'UPDATE_DAILY_GOAL':
+            activeProfile.dailyGoal.target = action.payload.goal;
+            activeProfile.dailyGoal.functionId = action.payload.functionId;
+            return;
+    }
+
+
+    const day = activeProfile.days.find(d => d.id === activeProfile.activeDayId);
     if (day) {
         const { payload } = action as any; 
         let func: FunctionEntry | undefined;
@@ -271,9 +333,7 @@ const appReducer = (state: AppState, action: Action): AppState => {
                 break;
             case 'DELETE_HOUR_FROM_FUNCTION':
                 if (func) {
-                    // Remove a hora
                     func.hours = func.hours.filter(h => h !== payload.hour);
-                    // Remove dados associados a essa hora
                     Object.keys(func.pieces).forEach(key => {
                         if (key.endsWith(`_${payload.hour}`)) delete func.pieces[key];
                     });
@@ -317,7 +377,26 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const savedStateString = localStorage.getItem(APP_STATE_KEY);
       if (savedStateString) {
         const savedState = JSON.parse(savedStateString);
-        // Garante que a estrutura do cronômetro seja sempre a mais recente ao carregar
+        
+        // Garante que o estado antigo (v2) seja migrado para o novo (v3 com perfis)
+        if (!savedState.profiles) {
+            console.log("Migrating old state to new profile structure.");
+            const defaultProfile = createDefaultProfile('Perfil Padrão');
+            defaultProfile.days = savedState.days || [];
+            defaultProfile.activeDayId = savedState.activeDayId || null;
+            defaultProfile.dailyGoal = savedState.dailyGoal || getInitialState().profiles[0].dailyGoal;
+            
+            savedState.profiles = [defaultProfile];
+            savedState.activeProfileId = defaultProfile.id;
+            delete (savedState as any).days;
+            delete (savedState as any).activeDayId;
+            delete (savedState as any).dailyGoal;
+        }
+        
+        if (!savedState.activeProfileId && savedState.profiles.length > 0) {
+            savedState.activeProfileId = savedState.profiles[0].id;
+        }
+
         const initialStopwatch = getInitialState().stopwatch;
         savedState.stopwatch = {
           ...initialStopwatch,
@@ -325,44 +404,31 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           mode: savedState.stopwatch?.mode || 'countdown',
           initialTime: savedState.stopwatch?.initialTime || 15
         };
-        // Reseta o estado em execução
         savedState.stopwatch.isRunning = false;
         savedState.stopwatch.pieces = 0;
         savedState.stopwatch.time = savedState.stopwatch.mode === 'countdown' ? savedState.stopwatch.initialTime : 0;
-
-
-        if(savedState.days === undefined) {
-          return getInitialState();
-        }
-
-        // Garante que o estado de metas exista
-        if (savedState.dailyGoal === undefined) {
-          savedState.dailyGoal = getInitialState().dailyGoal;
-        }
-
+        
         return savedState;
       }
     } catch (e) {
       console.error("Falha ao carregar o estado, usando o estado inicial.", e);
     }
-    return getInitialState();
+    const initialState = getInitialState();
+    initialState.activeProfileId = initialState.profiles[0]?.id;
+    return initialState;
   });
   
   const [isInitialized, setIsInitialized] = React.useState(false);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Efeito para carregar o estado apenas no cliente
   useEffect(() => {
     setIsInitialized(true);
   }, []);
 
-
-  // Salvar estado no localStorage sempre que mudar
   useEffect(() => {
     if (isInitialized) {
       try {
         const stateToSave = { ...state };
-        // Não salva o estado em tempo real do cronômetro, apenas o histórico e as configurações gerais
         const stopwatchStateToSave = {
             history: state.stopwatch.history,
             initialTime: state.stopwatch.initialTime,
@@ -377,7 +443,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   }, [state, isInitialized]);
   
-  // Efeito para o tema
   useEffect(() => {
     if (isInitialized) {
       const isDark = state.theme === 'dark';
@@ -386,7 +451,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   }, [state.theme, isInitialized]);
   
-  // Efeito para o timer do cronômetro
   useEffect(() => {
     if (state.stopwatch.isRunning) {
       timerRef.current = setInterval(() => {
@@ -405,15 +469,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
     };
   }, [state.stopwatch.isRunning]);
-
-  const activeDay = state.days.find(d => d.id === state.activeDayId) || null;
+  
+  const activeProfile = state.profiles.find(p => p.id === state.activeProfileId) || null;
+  const activeDay = activeProfile?.days.find(d => d.id === activeProfile.activeDayId) || null;
 
   if (!isInitialized) {
-    return null; // ou um componente de loading
+    return null; 
   }
 
   return (
-    <AppContext.Provider value={{ state, dispatch, activeDay }}>
+    <AppContext.Provider value={{ state, dispatch, activeProfile, activeDay }}>
       {children}
     </AppContext.Provider>
   );

@@ -28,7 +28,8 @@ import { Label } from '@/components/ui/label';
 
 // Componente para a barra de seleção de dia
 const DaySelector = () => {
-  const { state, dispatch } = useAppContext();
+  const { activeProfile, dispatch } = useAppContext();
+  if (!activeProfile) return null;
 
   const handleDayChange = (dayId: string) => {
     dispatch({ type: 'SET_ACTIVE_DAY', payload: dayId });
@@ -38,17 +39,17 @@ const DaySelector = () => {
     dispatch({ type: 'ADD_DAY' });
   };
 
-  const currentIndex = state.days.findIndex(d => d.id === state.activeDayId);
+  const currentIndex = activeProfile.days.findIndex(d => d.id === activeProfile.activeDayId);
 
   const goToPreviousDay = () => {
     if (currentIndex > 0) {
-      dispatch({ type: 'SET_ACTIVE_DAY', payload: state.days[currentIndex - 1].id });
+      dispatch({ type: 'SET_ACTIVE_DAY', payload: activeProfile.days[currentIndex - 1].id });
     }
   };
 
   const goToNextDay = () => {
-    if (currentIndex < state.days.length - 1) {
-      dispatch({ type: 'SET_ACTIVE_DAY', payload: state.days[currentIndex + 1].id });
+    if (currentIndex < activeProfile.days.length - 1) {
+      dispatch({ type: 'SET_ACTIVE_DAY', payload: activeProfile.days[currentIndex + 1].id });
     }
   };
 
@@ -57,19 +58,19 @@ const DaySelector = () => {
       <Button size="icon" variant="outline" onClick={goToPreviousDay} disabled={currentIndex <= 0}>
         <ChevronLeft className="h-4 w-4" />
       </Button>
-      <Select value={state.activeDayId ?? ''} onValueChange={handleDayChange}>
+      <Select value={activeProfile.activeDayId ?? ''} onValueChange={handleDayChange}>
         <SelectTrigger className="flex-1">
           <SelectValue placeholder="Selecione um dia" />
         </SelectTrigger>
         <SelectContent>
-          {state.days.map(day => (
+          {activeProfile.days.map(day => (
             <SelectItem key={day.id} value={day.id}>
               {new Date(day.id + 'T00:00:00').toLocaleDateString('pt-BR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
             </SelectItem>
           ))}
         </SelectContent>
       </Select>
-       <Button size="icon" variant="outline" onClick={goToNextDay} disabled={currentIndex >= state.days.length - 1}>
+       <Button size="icon" variant="outline" onClick={goToNextDay} disabled={currentIndex >= activeProfile.days.length - 1}>
         <ChevronRight className="h-4 w-4" />
       </Button>
       <Button size="icon" onClick={handleAddDay}><Plus className="h-4 w-4" /></Button>
@@ -156,10 +157,12 @@ const AddFunctionForm = ({ dayId }: { dayId: string }) => {
 
 // --- Componente de Meta Diária ---
 const DailyGoalCard = () => {
-  const { state, dispatch, activeDay } = useAppContext();
-  const { dailyGoal } = state;
+  const { dispatch, activeProfile, activeDay } = useAppContext();
   const [isOpen, setIsOpen] = useState(false);
 
+  if (!activeProfile) return null;
+
+  const { dailyGoal } = activeProfile;
   const goalFunction = activeDay?.functions.find(f => f.id === dailyGoal.functionId);
   const currentPieces = goalFunction ? Object.values(goalFunction.pieces).reduce((a, b) => a + b, 0) : 0;
   const progress = dailyGoal.target > 0 ? (currentPieces / dailyGoal.target) * 100 : 0;
@@ -197,7 +200,7 @@ const DailyGoalCard = () => {
                     <div className="space-y-2">
                       <h4 className="font-medium leading-none">Definir Meta</h4>
                       <p className="text-sm text-muted-foreground">
-                        Escolha a meta de peças e a função final.
+                        Escolha la meta de peças e a função final.
                       </p>
                     </div>
                     <div className="grid gap-2">
@@ -250,7 +253,7 @@ const DailyGoalCard = () => {
 
 // Página Principal
 export default function HomePage() {
-  const { activeDay } = useAppContext();
+  const { activeProfile, activeDay } = useAppContext();
   const [selectedFunctionId, setSelectedFunctionId] = useState<string | null>(null);
 
   const handleOpenSheet = (functionId: string) => {
@@ -262,6 +265,21 @@ export default function HomePage() {
   };
 
   const selectedFunction = activeDay?.functions.find(f => f.id === selectedFunctionId) ?? null;
+
+  if (!activeProfile) {
+    return (
+      <div className="p-4 md:p-6 space-y-4">
+        <Header title="Bem-vindo ao GiraTempo" />
+        <Card>
+          <CardContent className="p-6 text-center">
+             <p className="text-muted-foreground">
+              Nenhum perfil encontrado. Vá para as <Link href="/settings" className="text-primary underline">Configurações</Link> para criar ou selecionar um perfil.
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="p-4 md:p-6 space-y-4">
@@ -308,6 +326,3 @@ export default function HomePage() {
     </div>
   );
 }
-
-
-    

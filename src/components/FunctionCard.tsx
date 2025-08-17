@@ -1,3 +1,4 @@
+
 // src/components/FunctionCard.tsx
 "use client";
 
@@ -15,7 +16,7 @@ interface FunctionCardProps {
 }
 
 const FunctionCard = ({ func, onOpenSheet }: FunctionCardProps) => {
-  const { state, dispatch } = useAppContext();
+  const { activeDay, dispatch } = useAppContext();
   const { toast } = useToast();
 
   const totalPieces = Object.values(func.pieces).reduce((sum, pieces) => sum + pieces, 0);
@@ -40,8 +41,8 @@ const FunctionCard = ({ func, onOpenSheet }: FunctionCardProps) => {
   }, ["N/A", 0]);
 
   const handleDeleteFunction = () => {
-    if (state.activeDayId) {
-      dispatch({ type: 'DELETE_FUNCTION', payload: { dayId: state.activeDayId, functionId: func.id } });
+    if (activeDay) {
+      dispatch({ type: 'DELETE_FUNCTION', payload: { dayId: activeDay.id, functionId: func.id } });
       toast({
         title: "Função Removida",
         description: `A função "${func.name}" foi removida com sucesso.`,

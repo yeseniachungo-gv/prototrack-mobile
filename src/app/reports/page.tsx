@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useRef, useState } from 'react';
@@ -101,7 +102,7 @@ const ReportDialog = ({ report, isOpen, onClose }: { report: GenerateDailyReport
 
 
 export default function ReportsPage() {
-  const { state, dispatch } = useAppContext();
+  const { state, dispatch, activeProfile, activeDay } = useAppContext();
   const { toast } = useToast();
   const restoreInputRef = useRef<HTMLInputElement>(null);
   const [isGeneratingReport, setIsGeneratingReport] = useState(false);
@@ -119,11 +120,9 @@ export default function ReportsPage() {
       day.functions.forEach(func => {
         let csvContent = "data:text/csv;charset=utf-8,";
         
-        // Cabeçalho
         const headers = ["Trabalhador", "Hora", "Peças", "Motivo da Observação", "Detalhe da Observação"];
         csvContent += headers.join(',') + '\r\n';
 
-        // Linhas
         func.workers.forEach(worker => {
           func.hours.forEach(hour => {
             const key = `${worker}_${hour}`;
@@ -140,7 +139,6 @@ export default function ReportsPage() {
           });
         });
 
-        // Totais por trabalhador (opcional, mas útil)
         csvContent += '\r\n';
         csvContent += "Total por Trabalhador,,,\r\n";
          func.workers.forEach(worker => {
@@ -148,7 +146,6 @@ export default function ReportsPage() {
             csvContent += `${worker},${total},,\r\n`;
         });
         
-        // Download
         const encodedUri = encodeURI(csvContent);
         const link = document.createElement("a");
         link.setAttribute("href", encodedUri);
@@ -170,7 +167,6 @@ export default function ReportsPage() {
   const handleBackup = () => {
     try {
       const stateToBackup = { ...state };
-      // O histórico do cronômetro não faz parte do backup principal
       delete (stateToBackup as any).stopwatch;
 
       const jsonString = `data:text/json;charset=utf-8,${encodeURIComponent(
@@ -179,7 +175,7 @@ export default function ReportsPage() {
       const link = document.createElement("a");
       link.setAttribute("href", jsonString);
       const date = new Date().toISOString().split('T')[0];
-      link.setAttribute("download", `GiraTempo_Backup_${date}.json`);
+      link.setAttribute("download", `GiraTempo_Backup_${activeProfile?.name}_${date}.json`);
       link.click();
       toast({ title: 'Backup Criado com Sucesso!' });
     } catch(e) {
@@ -204,8 +200,7 @@ export default function ReportsPage() {
         
         const restoredState = JSON.parse(text);
         
-        // Validação básica do estado restaurado
-        if (restoredState.days && restoredState.activeDayId && restoredState.theme) {
+        if ((restoredState.days && restoredState.activeDayId) || restoredState.profiles) {
           dispatch({ type: 'SET_STATE', payload: restoredState });
           toast({ title: 'Backup Restaurado!', description: 'Seus dados foram carregados com sucesso.' });
         } else {
@@ -216,7 +211,6 @@ export default function ReportsPage() {
         console.error("Erro ao restaurar backup:", error);
         toast({ title: 'Erro na Restauração', description: (error as Error).message, variant: 'destructive' });
       } finally {
-        // Limpa o input para permitir restaurar o mesmo arquivo novamente
         if(restoreInputRef.current) restoreInputRef.current.value = "";
       }
     };
@@ -224,15 +218,15 @@ export default function ReportsPage() {
   };
   
   const handleGenerateReport = async () => {
-    if (!activeDay) return;
+    if (!activeDay || !activeProfile) return;
     setIsGeneratingReport(true);
     try {
-      const goalFunction = activeDay.functions.find(f => f.id === state.dailyGoal.functionId);
+      const goalFunction = activeDay.functions.find(f => f.id === activeProfile.dailyGoal.functionId);
 
       const report = await generateDailyReport({
         productionData: JSON.stringify(activeDay.functions),
         dailyGoal: JSON.stringify({
-          target: state.dailyGoal.target,
+          target: activeProfile.dailyGoal.target,
           functionName: goalFunction?.name || 'N/A'
         })
       });
@@ -246,7 +240,6 @@ export default function ReportsPage() {
     }
   }
 
-  const activeDay = state.days.find(d => d.id === state.activeDayId);
 
   return (
     <div className="p-4 md:p-6 space-y-4">
@@ -256,7 +249,7 @@ export default function ReportsPage() {
         <CardHeader>
           <CardTitle>Resumo Gerencial</CardTitle>
           <CardDescription>
-            Gere um relatório inteligente com a análise completa da produção do dia selecionado.
+            Gere um resumo inteligente com a análise completa da produção do dia selecionado.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -296,9 +289,6 @@ export default function ReportsPage() {
             <Button onClick={() => activeDay && handleExportCSV(activeDay)} disabled={!activeDay}>
               <FileText className="mr-2"/> Exportar CSV do Dia
             </Button>
-            <Button variant="secondary" disabled><FileX2 className="mr-2"/> Exportar XLSX</Button>
-            <Button variant="secondary" disabled><FileX2 className="mr-2"/> Exportar PDF</Button>
-            <Button variant="secondary" disabled><Printer className="mr-2"/> Imprimir</Button>
         </CardContent>
       </Card>
       
@@ -306,11 +296,11 @@ export default function ReportsPage() {
         <CardHeader>
           <CardTitle>Backup & Restauração</CardTitle>
           <CardDescription>
-            Salve todos os seus dados em um arquivo ou restaure a partir de um backup anterior.
+            Salve todos os dados do perfil atual em um arquivo ou restaure a partir de um backup.
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-wrap gap-2">
-            <Button onClick={handleBackup} variant="outline">
+            <Button onClick={handleBackup} variant="outline" disabled={!activeProfile}>
               <Download className="mr-2"/> Criar Backup
             </Button>
             <Button onClick={handleTriggerRestore} variant="outline">

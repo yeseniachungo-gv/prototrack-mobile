@@ -45,10 +45,17 @@ export interface DailyGoal {
   functionId: string | null;
 }
 
-export interface AppState {
+export interface Profile {
+  id: string;
+  name: string;
   days: Day[];
   activeDayId: string | null;
+  dailyGoal: DailyGoal;
+}
+
+export interface AppState {
+  profiles: Profile[];
+  activeProfileId: string | null;
   theme: 'light' | 'dark';
   stopwatch: StopwatchState;
-  dailyGoal: DailyGoal;
 }
