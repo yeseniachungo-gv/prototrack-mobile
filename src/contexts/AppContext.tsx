@@ -128,14 +128,11 @@ const appReducer = (state: AppState, action: Action): AppState => {
         return;
       case 'TOGGLE_TIMER': {
           const { operator, functionName, auxiliaryTimePercent } = action.payload;
-          
-          if (draft.stopwatch.mode === 'countdown' && draft.stopwatch.time === 0 && !draft.stopwatch.isRunning) return;
-
           const wasRunning = draft.stopwatch.isRunning;
-          draft.stopwatch.isRunning = !wasRunning;
-          
-          // Se parou de correr, salva o histórico
+
+          // Se estava rodando, vamos parar e salvar
           if (wasRunning) {
+              draft.stopwatch.isRunning = false;
               const duration = draft.stopwatch.mode === 'countdown' 
                   ? draft.stopwatch.initialTime - draft.stopwatch.time
                   : draft.stopwatch.time;
@@ -144,7 +141,7 @@ const appReducer = (state: AppState, action: Action): AppState => {
                  const pieces = draft.stopwatch.pieces;
                  const pph = duration > 0 ? (pieces / duration) * 3600 : 0;
                  const effectiveTimePercentage = 1 - (auxiliaryTimePercent / 100);
-                 const adjustedPph = pph / effectiveTimePercentage;
+                 const adjustedPph = effectiveTimePercentage > 0 ? pph / effectiveTimePercentage : 0;
 
                  draft.stopwatch.history.unshift({
                      id: uuidv4(),
@@ -158,7 +155,6 @@ const appReducer = (state: AppState, action: Action): AppState => {
                      adjustedAveragePerHour: adjustedPph,
                  });
               }
-              
               // Resetar para a próxima medição
               if (draft.stopwatch.mode === 'countdown') {
                   draft.stopwatch.time = draft.stopwatch.initialTime;
@@ -166,6 +162,11 @@ const appReducer = (state: AppState, action: Action): AppState => {
                   draft.stopwatch.time = 0;
               }
               draft.stopwatch.pieces = 0;
+
+          } else { // Se estava parado, vamos iniciar
+              // Não inicia se o countdown já terminou
+              if (draft.stopwatch.mode === 'countdown' && draft.stopwatch.time === 0) return;
+              draft.stopwatch.isRunning = true;
           }
           return;
         }
@@ -188,10 +189,10 @@ const appReducer = (state: AppState, action: Action): AppState => {
               if (draft.stopwatch.mode === 'countdown') {
                   if (draft.stopwatch.time > 0) {
                       draft.stopwatch.time -= 1;
-                      if (draft.stopwatch.time === 0) {
-                          draft.stopwatch.isRunning = false;
-                          // A finalização e o salvamento são acionados pelo próximo TOGGLE_TIMER
-                      }
+                  }
+                  if (draft.stopwatch.time === 0) {
+                      draft.stopwatch.isRunning = false;
+                      // A finalização e o salvamento são acionados pelo próximo TOGGLE_TIMER
                   }
               } else { // countup
                   draft.stopwatch.time += 1;

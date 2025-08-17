@@ -93,7 +93,7 @@ const AddFunctionForm = ({ dayId }: { dayId: string }) => {
     if (!functionName.trim() || !activeDay) {
       toast({
         title: "Entrada necessária",
-        description: "Por favor, digite o nome da nova função antes de usar a IA.",
+        description: "Por favor, digite o nome da nova função antes de usar a sugestão.",
         variant: "destructive"
       });
       return;
@@ -111,7 +111,7 @@ const AddFunctionForm = ({ dayId }: { dayId: string }) => {
       });
       
       toast({
-        title: "Sugestão da IA ✨",
+        title: "Sugestão Inteligente ✨",
         description: (
           <div className="flex flex-col gap-2">
             <p className="font-bold">Trabalhadores Sugeridos: <span className="font-normal">{result.suggestedWorkers || 'Nenhum'}</span></p>
@@ -122,9 +122,9 @@ const AddFunctionForm = ({ dayId }: { dayId: string }) => {
       });
 
     } catch (error) {
-      console.error("Erro ao chamar a IA:", error);
+      console.error("Erro ao obter sugestão:", error);
       toast({
-        title: "Erro da IA",
+        title: "Erro na Sugestão",
         description: "Não foi possível obter uma sugestão. Tente novamente.",
         variant: "destructive"
       });
@@ -142,7 +142,7 @@ const AddFunctionForm = ({ dayId }: { dayId: string }) => {
         onChange={(e) => setFunctionName(e.target.value)}
         className="flex-1"
       />
-      <Button type="button" variant="outline" size="icon" onClick={handleAISuggest} disabled={isLoading}>
+      <Button type="button" variant="outline" size="icon" onClick={handleAISuggest} disabled={isLoading} title="Obter sugestão inteligente">
         <Sparkles className="h-4 w-4" />
       </Button>
       <Button type="submit">Adicionar</Button>

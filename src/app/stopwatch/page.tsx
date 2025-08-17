@@ -11,7 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { cn } from '@/lib/utils';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 
 // Função para formatar o tempo de segundos para MM:SS
 const formatTime = (timeInSeconds: number) => {
@@ -65,8 +65,15 @@ export default function StopwatchPage() {
     }
   };
 
-  const currentPph = stopwatch.time > 0 && stopwatch.mode === 'countup' ? (stopwatch.pieces / stopwatch.time) * 3600 : 0;
-  const isFinished = stopwatch.time === 0 && !stopwatch.isRunning && stopwatch.history.length > 0 && stopwatch.mode === 'countdown';
+  const currentPph = stopwatch.time > 0 && stopwatch.mode === 'countup' 
+    ? (stopwatch.pieces / stopwatch.time) * 3600 
+    : stopwatch.mode === 'countdown' && stopwatch.initialTime > stopwatch.time
+    ? (stopwatch.pieces / (stopwatch.initialTime - stopwatch.time)) * 3600
+    : 0;
+
+  const isFinished = stopwatch.time === 0 && !stopwatch.isRunning && stopwatch.mode === 'countdown';
+
+  const canStart = !!operator.trim() && !!func.trim();
 
   return (
     <div className="p-4 md:p-6 space-y-4">
@@ -80,21 +87,22 @@ export default function StopwatchPage() {
                 <TabsTrigger value="countup">Contagem Progressiva</TabsTrigger>
               </TabsList>
             </Tabs>
-
-           <div className="grid grid-cols-2 gap-4 pt-4">
-                <div>
-                    <Label htmlFor="operador">Operador</Label>
-                    <Input id="operador" placeholder="Nome do operador" value={operator} onChange={e => setOperator(e.target.value)} disabled={stopwatch.isRunning}/>
-                </div>
-                <div>
-                    <Label htmlFor="funcao">Função</Label>
-                    <Input id="funcao" placeholder="Ex: Reta / Revisão" value={func} onChange={e => setFunc(e.target.value)} disabled={stopwatch.isRunning}/>
-                </div>
-           </div>
-            <div>
-                 <Label htmlFor="aux-time">Tempo Auxiliar (%)</Label>
-                 <Input id="aux-time" type="number" value={auxTime} onChange={e => setAuxTime(parseFloat(e.target.value) || 0)} disabled={stopwatch.isRunning}/>
-            </div>
+          <TabsContent value={stopwatch.mode} className="pt-4">
+             <div className="grid grid-cols-2 gap-4">
+                  <div>
+                      <Label htmlFor="operador">Operador</Label>
+                      <Input id="operador" placeholder="Nome do operador" value={operator} onChange={e => setOperator(e.target.value)} disabled={stopwatch.isRunning}/>
+                  </div>
+                  <div>
+                      <Label htmlFor="funcao">Função</Label>
+                      <Input id="funcao" placeholder="Ex: Reta / Revisão" value={func} onChange={e => setFunc(e.target.value)} disabled={stopwatch.isRunning}/>
+                  </div>
+             </div>
+              <div className="mt-4">
+                   <Label htmlFor="aux-time">Tempo Auxiliar (%)</Label>
+                   <Input id="aux-time" type="number" value={auxTime} onChange={e => setAuxTime(parseFloat(e.target.value) || 0)} disabled={stopwatch.isRunning}/>
+              </div>
+          </TabsContent>
         </CardContent>
       </Card>
       
@@ -140,7 +148,7 @@ export default function StopwatchPage() {
           </div>
           
           <div className="flex justify-center gap-2">
-            <Button size="lg" onClick={handleToggleTimer} className="w-40" disabled={(stopwatch.mode === 'countdown' && stopwatch.time === 0) || !operator || !func}>
+            <Button size="lg" onClick={handleToggleTimer} className="w-40" disabled={!canStart || (isFinished && !stopwatch.isRunning)}>
               {stopwatch.isRunning ? <><Pause className="mr-2"/> Parar</> : <><Play className="mr-2"/> Iniciar</>}
             </Button>
             <Button size="lg" variant="destructive" onClick={handleResetTimer} disabled={!stopwatch.isRunning && ((stopwatch.mode === 'countdown' && stopwatch.time === stopwatch.initialTime) || (stopwatch.mode === 'countup' && stopwatch.time === 0)) && stopwatch.pieces === 0}>
@@ -160,7 +168,7 @@ export default function StopwatchPage() {
                 <div className="text-2xl font-bold">{currentPph.toFixed(0)}</div>
             </div>
              <div className="p-4 bg-muted rounded-lg">
-                <div className="text-sm text-muted-foreground">Média Ajustada (-{auxTime}%)</div>
+                <div className="text-sm text-muted-foreground">Média Ajustada ({auxTime}%)</div>
                 <div className="text-2xl font-bold">{(currentPph / (1 - (auxTime / 100)) || 0).toFixed(0)}</div>
             </div>
         </CardContent>
@@ -202,5 +210,3 @@ export default function StopwatchPage() {
     </div>
   );
 }
-
-    
