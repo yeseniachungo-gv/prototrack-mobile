@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { useAppContext } from '@/contexts/AppContext';
-import { Moon, Sun, Palette, HelpCircle, User, Download, Upload, FileText, Crown, HardHat, AlertTriangle, Trash2 } from 'lucide-react';
+import { Moon, Sun, Palette, HelpCircle, User, Download, Upload, FileText, Crown, HardHat, AlertTriangle, Trash2, CloudCog } from 'lucide-react';
 import {
   Accordion,
   AccordionContent,
@@ -86,6 +86,8 @@ export default function SettingsPage() {
   const [currentPin, setCurrentPin] = useState('');
   const [newPin, setNewPin] = useState('');
   const [confirmPin, setConfirmPin] = useState('');
+  
+  const hasProOrPremium = state.plan === 'pro' || state.plan === 'premium';
 
   const toggleTheme = () => {
     const newTheme = state.theme === 'dark' ? 'light' : 'dark';
@@ -280,13 +282,13 @@ export default function SettingsPage() {
                     <FileText /> Dados & Exportação
                 </div>
               </AccordionTrigger>
-              <AccordionContent className="pt-4 px-6">
+              <AccordionContent className="pt-4 px-6 space-y-4">
                   <div className="flex flex-wrap gap-2">
                     <Button onClick={handleExportCSV} disabled={!activeProfile?.activeDayId} variant="outline">
                       <FileText className="mr-2"/> Exportar CSV do Dia
                     </Button>
                     <Button onClick={handleBackup} variant="outline" disabled={!activeProfile}>
-                      <Download className="mr-2"/> Criar Backup
+                      <Download className="mr-2"/> Criar Backup (Manual)
                     </Button>
                     <Button onClick={handleTriggerRestore} variant="outline">
                       <Upload className="mr-2"/> Restaurar de Arquivo
@@ -299,6 +301,12 @@ export default function SettingsPage() {
                       accept=".json"
                     />
                 </div>
+                {hasProOrPremium && (
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground p-3 bg-muted rounded-lg">
+                        <CloudCog className="h-5 w-5 text-primary" />
+                        <span>O backup automático na nuvem está ativo para este plano.</span>
+                    </div>
+                )}
               </AccordionContent>
             </AccordionItem>
              <AccordionItem value="item-4">

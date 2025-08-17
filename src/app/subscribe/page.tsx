@@ -2,7 +2,7 @@
 "use client";
 
 import React from 'react';
-import { Check, Crown, Zap, Shield, Star, Users, BrainCircuit, FileText, CloudCog, MessageSquare, X } from 'lucide-react';
+import { Check, Crown, Zap, Shield, Star, Users, BrainCircuit, FileText, CloudCog, MessageSquare, X, Download } from 'lucide-react';
 import Header from '@/components/Header';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -21,6 +21,7 @@ const plans = {
             { text: 'Controle de produção diário', icon: Check, included: true },
             { text: 'Cronômetro de produção', icon: Check, included: true },
             { text: 'Resumos automáticos diários e semanais', icon: BrainCircuit, included: true },
+            { text: 'Backup manual na nuvem (simulado)', icon: Download, included: true },
             { text: 'Mural de Comunicados', icon: MessageSquare, included: false },
             { text: 'Resumos mensais e análises consolidadas', icon: BrainCircuit, included: false },
         ],
@@ -35,6 +36,7 @@ const plans = {
             { text: 'Mural de Comunicados', icon: MessageSquare, included: true },
             { text: 'Resumos mensais e análises consolidadas', icon: BrainCircuit, included: true },
             { text: 'Exportação de relatórios em CSV', icon: FileText, included: true },
+            { text: 'Backup automático na nuvem (simulado)', icon: CloudCog, included: true },
         ],
         icon: Zap,
     },
@@ -45,7 +47,6 @@ const plans = {
             { text: 'Até 10 perfis de equipe', icon: Users, included: true },
             { text: 'Todas as funções do Pro', icon: Check, included: true },
             { text: 'Exportação de relatórios em PDF', icon: FileText, included: true },
-            { text: 'Backup automático na nuvem (simulado)', icon: CloudCog, included: true },
             { text: 'Suporte prioritário', icon: Star, included: true },
         ],
         icon: Crown,
