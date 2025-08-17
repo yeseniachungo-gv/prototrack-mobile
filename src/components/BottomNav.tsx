@@ -21,7 +21,7 @@ export default function BottomNav() {
   const { state, dispatch } = useAppContext();
   const router = useRouter();
 
-  const isSelectionOrAdminPage = pathname === '/' || pathname.startsWith('/admin') || pathname.startsWith('/login');
+  const isSelectionOrAdminPage = pathname === '/' || pathname.startsWith('/admin') || pathname.startsWith('/login') || pathname.startsWith('/subscribe');
 
   if (isSelectionOrAdminPage) {
     return null;
