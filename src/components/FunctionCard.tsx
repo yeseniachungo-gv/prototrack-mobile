@@ -4,6 +4,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { FunctionEntry } from "@/lib/types";
 import React from 'react';
+import { useAppContext } from "@/contexts/AppContext";
+import { useToast } from "@/hooks/use-toast";
+
 
 interface FunctionCardProps {
   func: FunctionEntry;
@@ -13,9 +16,43 @@ interface FunctionCardProps {
 }
 
 const FunctionCard = ({ func, onOpenSheet, onEdit, onDelete }: FunctionCardProps) => {
+  const { state, dispatch } = useAppContext();
+  const { toast } = useToast();
+
   const totalPieces = func.observations.reduce((acc, obs) => acc + (obs.pieces || 0), 0);
   const totalHoursWithProduction = new Set(func.observations.filter(o => o.pieces > 0).map(o => o.hour)).size;
   const pph = totalHoursWithProduction > 0 ? Math.round(totalPieces / totalHoursWithProduction) : 0;
+  
+  const handleDuplicate = () => {
+    if (!state.activeDayId) return;
+    const newName = prompt(`Nome para a cópia de "${func.name}":`, `${func.name} (cópia)`);
+    if (newName && newName.trim() !== '') {
+        dispatch({
+            type: 'DUPLICATE_FUNCTION',
+            payload: {
+                dayId: state.activeDayId,
+                functionId: func.id,
+                newName: newName.trim(),
+            },
+        });
+        toast({ title: 'Função duplicada com sucesso!' });
+    }
+  };
+  
+  const handleClearValues = () => {
+     if (!state.activeDayId) return;
+     if (confirm(`Tem certeza que deseja zerar os valores da função "${func.name}"?`)) {
+        dispatch({
+            type: 'CLEAR_FUNCTION_VALUES',
+            payload: {
+                dayId: state.activeDayId,
+                functionId: func.id,
+            },
+        });
+        toast({ title: 'Valores da função zerados.' });
+     }
+  };
+
 
   return (
     <Card>
@@ -29,12 +66,8 @@ const FunctionCard = ({ func, onOpenSheet, onEdit, onDelete }: FunctionCardProps
           </div>
           <div className="flex flex-wrap gap-2 justify-end">
             <Button size="sm" variant="default" onClick={() => onOpenSheet(func.id)}>Entrar</Button>
-            <Button size="sm" variant="outline" onClick={() => onEdit(func.id)}>Duplicar</Button>
-            <Button size="sm" variant="outline" onClick={() => {
-                const updatedObservations = func.observations.map(obs => ({ ...obs, pieces: 0, reason:'', detail:'', type:'note' as const, duration:0 }));
-                // This is a placeholder for a dispatch call, you should implement the logic in your context
-                console.log("Zerar logic here", func.id);
-            }}>Zerar</Button>
+            <Button size="sm" variant="outline" onClick={handleDuplicate}>Duplicar</Button>
+            <Button size="sm" variant="outline" onClick={handleClearValues}>Zerar</Button>
             <Button size="sm" variant="destructive" onClick={() => onDelete(func.id)}>Excluir</Button>
           </div>
         </div>

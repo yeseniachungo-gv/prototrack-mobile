@@ -5,7 +5,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Input } from '@/components/ui/input';
 import { useAppContext } from '@/contexts/AppContext';
 import { useToast } from '@/hooks/use-toast';
-import { ScrollArea } from './ui/scroll-area';
+import { ScrollArea, ScrollBar } from './ui/scroll-area';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Label } from './ui/label';
 import { Textarea } from './ui/textarea';
@@ -206,7 +206,7 @@ export default function FunctionSheet({ dayId, funcId, isOpen, onClose }: Functi
           </div>
         </DialogHeader>
         <div className="flex-1 relative mt-4">
-          <ScrollArea className="absolute inset-0 w-full h-full">
+          <ScrollArea className="w-full h-full">
             <table className="min-w-full border-collapse text-sm">
               <thead className="sticky top-0 bg-card z-10">
                 <tr>
@@ -313,6 +313,7 @@ export default function FunctionSheet({ dayId, funcId, isOpen, onClose }: Functi
                 </tr>
               </tbody>
             </table>
+            <ScrollBar orientation="horizontal" />
           </ScrollArea>
         </div>
       </DialogContent>

@@ -12,6 +12,8 @@ type Action =
   | { type: 'RENAME_DAY'; payload: { dayId: string, newId: string, newName: string } }
   | { type: 'ADD_FUNCTION'; payload: { dayId: string; name: string } }
   | { type: 'DELETE_FUNCTION'; payload: { functionId: string } }
+  | { type: 'DUPLICATE_FUNCTION', payload: { dayId: string, functionId: string, newName: string } }
+  | { type: 'CLEAR_FUNCTION_VALUES', payload: { dayId: string, functionId: string } }
   | { type: 'UPDATE_FUNCTION'; payload: { dayId: string, functionData: FunctionEntry } }
   | { type: 'UPDATE_OBSERVATION'; payload: { dayId: string, functionId: string, observation: Observation } }
   | { type: 'ADD_HISTORY_ENTRY'; payload: { dayId: string; entry: HistoryEntry } }
@@ -109,6 +111,36 @@ const appReducer = (state: AppState, action: Action): AppState => {
                     observations: [],
                     checklists: [],
                 });
+            }
+            break;
+        }
+
+        case 'DUPLICATE_FUNCTION': {
+            const { dayId, functionId, newName } = action.payload;
+            const day = draft.days.find(d => d.id === dayId);
+            if(day) {
+                const funcToCopy = day.functions.find(f => f.id === functionId);
+                if (funcToCopy) {
+                    const newFunction = {
+                        ...funcToCopy,
+                        id: crypto.randomUUID(),
+                        name: newName,
+                        observations: [], // Clear observations for the new copy
+                    };
+                    day.functions.push(newFunction);
+                }
+            }
+            break;
+        }
+
+        case 'CLEAR_FUNCTION_VALUES': {
+            const { dayId, functionId } = action.payload;
+            const day = draft.days.find(d => d.id === dayId);
+            if(day) {
+                const func = day.functions.find(f => f.id === functionId);
+                if (func) {
+                    func.observations = [];
+                }
             }
             break;
         }
