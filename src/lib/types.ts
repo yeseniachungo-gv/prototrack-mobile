@@ -40,12 +40,19 @@ export interface StopwatchHistoryEntry {
     adjustedAveragePerHour: number;
 }
 
+export interface StopwatchSession {
+    operator: string;
+    functionName: string;
+    auxiliaryTimePercent: number;
+}
+
 export interface StopwatchState {
     mode: 'countdown' | 'countup';
     time: number; // Represents the current time on the stopwatch (countdown or countup)
     initialTime: number; // The starting time for the countdown
     pieces: number;
     isRunning: boolean;
+    session: StopwatchSession;
     history: StopwatchHistoryEntry[];
 }
 

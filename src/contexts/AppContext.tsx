@@ -3,7 +3,7 @@
 
 import React, { createContext, useReducer, useContext, useEffect, useRef } from 'react';
 import { produce } from 'immer';
-import type { AppState, Day, FunctionEntry, Profile, Announcement, StopwatchState, MasterDataItem } from '@/lib/types';
+import type { AppState, Day, FunctionEntry, Profile, Announcement, StopwatchState, MasterDataItem, StopwatchHistoryEntry } from '@/lib/types';
 import { v4 as uuidv4 } from 'uuid';
 
 type Action =
@@ -20,11 +20,15 @@ type Action =
   | { type: 'UPDATE_PIECES', payload: { dayId: string; functionId: string; worker: string; hour: string; value: number } }
   | { type: 'UPDATE_OBSERVATION', payload: { dayId: string; functionId: string; worker: string; hour: string; reason: string; detail: string; minutesStopped?: number } }
   | { type: 'SET_TIMER', payload: number }
-  | { type: 'TOGGLE_TIMER', payload: { operator: string, functionName: string, auxiliaryTimePercent: number } }
+  | { type: 'START_TIMER' }
+  | { type: 'STOP_TIMER' }
   | { type: 'RESET_TIMER' }
   | { type: 'TICK' }
   | { type: 'ADD_PIECE', payload: number }
+  | { type: 'UNDO_PIECE' }
   | { type: 'SET_STOPWATCH_MODE', payload: 'countdown' | 'countup' }
+  | { type: 'UPDATE_STOPWATCH_SESSION_DETAILS', payload: { operator: string, functionName: string, auxiliaryTimePercent: number } }
+  | { type: 'CLEAR_STOPWATCH_HISTORY' }
   | { type: 'UPDATE_DAILY_GOAL', payload: { goal: number; functionId: string | null } }
   | { type: 'ADD_PROFILE'; payload: string }
   | { type: 'DELETE_PROFILE'; payload: string }
@@ -76,6 +80,11 @@ function getInitialState(): AppState {
         initialTime: 15,
         pieces: 0,
         isRunning: false,
+        session: {
+          operator: '',
+          functionName: '',
+          auxiliaryTimePercent: 8.3,
+        },
         history: []
     },
     announcements: [],
@@ -187,56 +196,61 @@ const appReducer = produce((draft: AppState, action: Action) => {
 
         // --- Stopwatch Actions ---
         case 'SET_STOPWATCH_MODE': {
-            draft.stopwatch.isRunning = false;
-            draft.stopwatch.pieces = 0;
+            if (draft.stopwatch.isRunning) break;
             draft.stopwatch.mode = action.payload;
+            draft.stopwatch.pieces = 0;
             draft.stopwatch.time = action.payload === 'countdown' ? draft.stopwatch.initialTime : 0;
             break;
         }
         case 'SET_TIMER': {
-            if (!draft.stopwatch.isRunning && draft.stopwatch.mode === 'countdown') {
+            if (draft.stopwatch.isRunning) break;
+            if (draft.stopwatch.mode === 'countdown') {
                 draft.stopwatch.initialTime = action.payload;
                 draft.stopwatch.time = action.payload;
             }
             break;
         }
-        case 'TOGGLE_TIMER': {
-            const { operator, functionName, auxiliaryTimePercent } = action.payload;
-            const wasRunning = draft.stopwatch.isRunning;
-            draft.stopwatch.isRunning = !wasRunning;
+        case 'START_TIMER': {
+            if (draft.stopwatch.isRunning) break;
+            draft.stopwatch.isRunning = true;
+             if (draft.stopwatch.mode === 'countup') {
+                draft.stopwatch.time = 0;
+                draft.stopwatch.pieces = 0;
+            }
+            break;
+        }
+        case 'STOP_TIMER': {
+            if (!draft.stopwatch.isRunning) break;
+            draft.stopwatch.isRunning = false;
 
-            if (wasRunning) { // When stopping
-                const duration = draft.stopwatch.mode === 'countdown'
-                    ? draft.stopwatch.initialTime - draft.stopwatch.time
-                    : draft.stopwatch.time;
-                
-                if (duration > 0 || draft.stopwatch.pieces > 0) {
-                    const pieces = draft.stopwatch.pieces;
-                    const pph = duration > 0 ? (pieces / duration) * 3600 : 0;
-                    const effectiveTimePercentage = 1 - (auxiliaryTimePercent / 100);
-                    const adjustedPph = effectiveTimePercentage > 0 ? pph / effectiveTimePercentage : 0;
+            const { operator, functionName, auxiliaryTimePercent } = draft.stopwatch.session;
+            const duration = draft.stopwatch.mode === 'countdown'
+                ? draft.stopwatch.initialTime - draft.stopwatch.time
+                : draft.stopwatch.time;
+            
+            if (duration > 0 || draft.stopwatch.pieces > 0) {
+                const pieces = draft.stopwatch.pieces;
+                const pph = duration > 0 ? (pieces / duration) * 3600 : 0;
+                const effectiveTimePercentage = 1 - (auxiliaryTimePercent / 100);
+                const adjustedPph = effectiveTimePercentage > 0 ? pph / effectiveTimePercentage : 0;
 
-                    draft.stopwatch.history.unshift({
-                        id: uuidv4(),
-                        endTime: new Date().toISOString(),
-                        duration: duration, 
-                        pieces: pieces,
-                        workerName: operator,
-                        functionName: functionName,
-                        auxiliaryTimePercent: auxiliaryTimePercent,
-                        averagePerHour: pph,
-                        adjustedAveragePerHour: adjustedPph,
-                    });
-                }
-                if (draft.stopwatch.mode === 'countdown' && draft.stopwatch.time === 0) {
-                     draft.stopwatch.time = draft.stopwatch.initialTime;
-                     draft.stopwatch.pieces = 0;
-                }
+                const newEntry: StopwatchHistoryEntry = {
+                    id: uuidv4(),
+                    endTime: new Date().toISOString(),
+                    duration: duration, 
+                    pieces: pieces,
+                    workerName: operator,
+                    functionName: functionName,
+                    auxiliaryTimePercent: auxiliaryTimePercent,
+                    averagePerHour: pph,
+                    adjustedAveragePerHour: adjustedPph,
+                };
+                draft.stopwatch.history.unshift(newEntry);
             }
             break;
         }
         case 'RESET_TIMER': {
-            draft.stopwatch.isRunning = false;
+            if (draft.stopwatch.isRunning) break;
             draft.stopwatch.pieces = 0;
             draft.stopwatch.time = draft.stopwatch.mode === 'countdown' ? draft.stopwatch.initialTime : 0;
             break;
@@ -247,18 +261,35 @@ const appReducer = produce((draft: AppState, action: Action) => {
             }
             break;
         }
+        case 'UNDO_PIECE': {
+            if(draft.stopwatch.pieces > 0) {
+                draft.stopwatch.pieces -= 1;
+            }
+            break;
+        }
         case 'TICK': {
             if (draft.stopwatch.isRunning) {
                 if (draft.stopwatch.mode === 'countdown') {
                     draft.stopwatch.time -= 1;
                     if (draft.stopwatch.time <= 0) {
                         draft.stopwatch.time = 0;
-                        draft.stopwatch.isRunning = false; 
+                        // Dispatch STOP_TIMER action when countdown finishes
+                        return appReducer(draft, { type: 'STOP_TIMER' });
                     }
                 } else { // countup
                     draft.stopwatch.time += 1;
                 }
             }
+            break;
+        }
+        case 'UPDATE_STOPWATCH_SESSION_DETAILS': {
+            if (!draft.stopwatch.isRunning) {
+                draft.stopwatch.session = action.payload;
+            }
+            break;
+        }
+        case 'CLEAR_STOPWATCH_HISTORY': {
+            draft.stopwatch.history = [];
             break;
         }
 
@@ -435,13 +466,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   useEffect(() => {
     if (isInitialized) {
       try {
-        const stateToSave = { ...state };
+        // Create a copy of the state to avoid modifying the original object during serialization
+        const stateToSave = JSON.parse(JSON.stringify(state));
+
+        // Sanitize the stopwatch state before saving
         const stopwatchStateToSave = {
             history: state.stopwatch.history,
             initialTime: state.stopwatch.initialTime,
             mode: state.stopwatch.mode,
+            session: state.stopwatch.session,
         };
-        (stateToSave as any).stopwatch = stopwatchStateToSave;
+        stateToSave.stopwatch = stopwatchStateToSave;
+        
         localStorage.setItem(APP_STATE_KEY, JSON.stringify(stateToSave));
       } catch (e) { console.error("Failed to save state.", e) }
     }

@@ -3,17 +3,31 @@
 
 import React, { useState, useEffect } from 'react';
 import Header from '@/components/Header';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useAppContext } from '@/contexts/AppContext';
-import { Play, Pause, RotateCcw } from 'lucide-react';
+import { Play, Pause, RotateCcw, Trash2 } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { cn } from '@/lib/utils';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useToast } from '@/hooks/use-toast';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 
-// Function to format time from seconds to MM:SS
+
+// --- Helper Functions & Constants ---
+
 const formatTime = (timeInSeconds: number) => {
   const minutes = Math.floor(timeInSeconds / 60).toString().padStart(2, '0');
   const seconds = (timeInSeconds % 60).toString().padStart(2, '0');
@@ -27,36 +41,46 @@ const timePresets = [
     { label: "2m", seconds: 120 },
     { label: "5m", seconds: 300 },
     { label: "10m", seconds: 600 },
-]
+];
+
+
+// --- Main Stopwatch Page Component ---
 
 export default function StopwatchPage() {
   const { state, dispatch } = useAppContext();
   const { stopwatch } = state;
-  
-  // Local states for inputs
-  const [operator, setOperator] = useState('');
-  const [func, setFunc] = useState('');
-  const [auxTime, setAuxTime] = useState(8.3); // Default 8.3% (5 min/hour)
+  const { toast } = useToast();
 
-  const handleToggleTimer = () => {
-    dispatch({ 
-        type: 'TOGGLE_TIMER', 
-        payload: { operator, functionName: func, auxiliaryTimePercent: auxTime }
-    });
-  };
+  const [sessionDetails, setSessionDetails] = useState(stopwatch.session);
 
-  const handleResetTimer = () => {
-    dispatch({ type: 'RESET_TIMER' });
-  };
-  
-  const handlePieceClick = () => {
-    if (stopwatch.isRunning) {
-        dispatch({ type: 'ADD_PIECE', payload: 1 });
+  useEffect(() => {
+    if (!stopwatch.isRunning) {
+        setSessionDetails(stopwatch.session);
     }
-  };
+  }, [stopwatch.session, stopwatch.isRunning]);
 
+  useEffect(() => {
+    dispatch({ type: 'UPDATE_STOPWATCH_SESSION_DETAILS', payload: sessionDetails });
+  }, [sessionDetails, dispatch]);
+
+
+  const handleStart = () => {
+    if (!sessionDetails.operator.trim() || !sessionDetails.functionName.trim()) {
+        toast({ title: 'Atenção', description: 'Preencha o nome do operador e a função para iniciar.', variant: 'destructive'});
+        return;
+    }
+    dispatch({ type: 'START_TIMER' });
+  };
+  
+  const handleStop = () => dispatch({ type: 'STOP_TIMER' });
+  const handleReset = () => dispatch({ type: 'RESET_TIMER' });
+  const handleAddPiece = () => dispatch({ type: 'ADD_PIECE', payload: 1 });
+  const handleUndoPiece = () => dispatch({ type: 'UNDO_PIECE' });
+  
   const handleSetTime = (seconds: number) => {
-    dispatch({ type: 'SET_TIMER', payload: seconds });
+    if (!stopwatch.isRunning) {
+        dispatch({ type: 'SET_TIMER', payload: seconds });
+    }
   }
 
   const handleModeChange = (mode: string) => {
@@ -64,16 +88,28 @@ export default function StopwatchPage() {
       dispatch({ type: 'SET_STOPWATCH_MODE', payload: mode });
     }
   };
+  
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { id, value } = e.target;
+    setSessionDetails(prev => ({
+        ...prev,
+        [id]: id === 'auxiliaryTimePercent' ? parseFloat(value) || 0 : value
+    }));
+  };
 
-  const currentPph = stopwatch.time > 0 && stopwatch.mode === 'countup' 
-    ? (stopwatch.pieces / stopwatch.time) * 3600 
-    : stopwatch.mode === 'countdown' && stopwatch.initialTime > stopwatch.time
+  const currentPph = stopwatch.mode === 'countup' 
+    ? stopwatch.time > 0 ? (stopwatch.pieces / stopwatch.time) * 3600 : 0
+    : stopwatch.initialTime - stopwatch.time > 0 
     ? (stopwatch.pieces / (stopwatch.initialTime - stopwatch.time)) * 3600
     : 0;
 
+  const adjustedPph = currentPph / (1 - (sessionDetails.auxiliaryTimePercent / 100) || 1);
+  
   const isFinished = stopwatch.mode === 'countdown' && stopwatch.time === 0 && !stopwatch.isRunning;
 
-  const canStart = !!operator.trim() && !!func.trim();
+  const progressBarWidth = stopwatch.mode === 'countdown' && stopwatch.initialTime > 0
+    ? 100 * (1 - (stopwatch.time / stopwatch.initialTime))
+    : 0;
 
   return (
     <div className="p-4 md:p-6 space-y-4">
@@ -86,35 +122,34 @@ export default function StopwatchPage() {
                 <TabsTrigger value="countdown" disabled={stopwatch.isRunning}>Contagem Regressiva</TabsTrigger>
                 <TabsTrigger value="countup" disabled={stopwatch.isRunning}>Contagem Progressiva</TabsTrigger>
               </TabsList>
-              <TabsContent value={stopwatch.mode} className="pt-4">
-                <div className="grid grid-cols-2 gap-4">
-                      <div>
-                          <Label htmlFor="operador">Operador</Label>
-                          <Input id="operador" placeholder="Nome do operador" value={operator} onChange={e => setOperator(e.target.value)} disabled={stopwatch.isRunning}/>
-                      </div>
-                      <div>
-                          <Label htmlFor="funcao">Função</Label>
-                          <Input id="funcao" placeholder="Ex: Reta / Revisão" value={func} onChange={e => setFunc(e.target.value)} disabled={stopwatch.isRunning}/>
-                      </div>
-                </div>
-                  <div className="mt-4">
-                      <Label htmlFor="aux-time">Tempo Auxiliar (%)</Label>
-                      <Input id="aux-time" type="number" value={auxTime} onChange={e => setAuxTime(parseFloat(e.target.value) || 0)} disabled={stopwatch.isRunning}/>
-                  </div>
-              </TabsContent>
             </Tabs>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+                <div>
+                    <Label htmlFor="operator">Operador</Label>
+                    <Input id="operator" placeholder="Nome do operador" value={sessionDetails.operator} onChange={handleInputChange} disabled={stopwatch.isRunning}/>
+                </div>
+                <div>
+                    <Label htmlFor="functionName">Função</Label>
+                    <Input id="functionName" placeholder="Ex: Costura / Revisão" value={sessionDetails.functionName} onChange={handleInputChange} disabled={stopwatch.isRunning}/>
+                </div>
+                 <div>
+                    <Label htmlFor="auxiliaryTimePercent">Tempo auxiliar (%)</Label>
+                    <Input id="auxiliaryTimePercent" type="number" value={sessionDetails.auxiliaryTimePercent} onChange={handleInputChange} disabled={stopwatch.isRunning}/>
+                </div>
+            </div>
         </CardContent>
       </Card>
       
       <Card className="text-center">
-         {stopwatch.mode === 'countdown' && (
-            <CardHeader>
-                <CardTitle>Intervalo de Medição</CardTitle>
-            </CardHeader>
-         )}
+        <CardHeader>
+            <CardTitle>
+                {stopwatch.mode === 'countdown' ? 'Intervalo de Medição' : 'Contador'}
+            </CardTitle>
+        </CardHeader>
         <CardContent className="p-6">
            {stopwatch.mode === 'countdown' && (
-             <div className="flex justify-center gap-2 mb-4 flex-wrap">
+             <div className="flex justify-center gap-2 mb-6 flex-wrap">
                 {timePresets.map(preset => (
                   <Button 
                       key={preset.seconds}
@@ -129,29 +164,41 @@ export default function StopwatchPage() {
              </div>
            )}
           
-          <div 
-             className={cn(
-                "text-8xl font-bold font-mono text-primary mb-4 transition-colors duration-300",
-                isFinished && "text-destructive"
-             )}
-           >
-            {formatTime(stopwatch.time)}
+          <div className='relative mb-4'>
+            <div 
+                className={cn(
+                    "text-8xl font-bold font-mono text-primary transition-colors duration-300",
+                    isFinished && "text-destructive"
+                )}
+            >
+                {formatTime(stopwatch.time)}
+            </div>
+            {stopwatch.mode === 'countdown' && (
+                <div className="w-full bg-muted rounded-full h-2.5 mt-2">
+                    <div className="bg-primary h-2.5 rounded-full" style={{width: `${progressBarWidth}%`}}></div>
+                </div>
+            )}
           </div>
-          
-          <div className="flex items-center justify-center gap-4 mb-6">
-             <div 
-                className="text-5xl font-bold w-32 text-center bg-muted rounded-lg p-2 cursor-pointer select-none"
-                onClick={handlePieceClick}
-             >
+
+          <div className="flex justify-center items-center gap-4 my-8">
+            <Button size="icon" variant="outline" className="w-14 h-14 rounded-full text-2xl" onClick={handleUndoPiece} disabled={!stopwatch.isRunning && stopwatch.pieces === 0}>-</Button>
+            <Button size="icon" className="w-24 h-24 rounded-full text-5xl" onClick={handleAddPiece} disabled={!stopwatch.isRunning}>
                 {stopwatch.pieces}
-             </div>
+            </Button>
+            <div className="w-14 h-14"></div>
           </div>
           
-          <div className="flex justify-center gap-2">
-            <Button size="lg" onClick={handleToggleTimer} className="w-40" disabled={!canStart}>
-              {stopwatch.isRunning ? <><Pause className="mr-2"/> Parar</> : <><Play className="mr-2"/> Iniciar</>}
-            </Button>
-            <Button size="lg" variant="destructive" onClick={handleResetTimer} disabled={stopwatch.isRunning}>
+          <div className="flex justify-center gap-4">
+            {!stopwatch.isRunning ? (
+                <Button size="lg" onClick={handleStart} className="w-40">
+                    <Play className="mr-2"/> Iniciar
+                </Button>
+            ) : (
+                <Button size="lg" variant="destructive" onClick={handleStop} className="w-40">
+                    <Pause className="mr-2"/> Finalizar
+                </Button>
+            )}
+            <Button size="lg" variant="outline" onClick={handleReset} disabled={stopwatch.isRunning}>
                 <RotateCcw className="mr-2"/> Zerar
             </Button>
           </div>
@@ -162,21 +209,53 @@ export default function StopwatchPage() {
         <CardHeader>
           <CardTitle>Desempenho da Sessão Atual</CardTitle>
         </CardHeader>
-        <CardContent className="grid grid-cols-2 gap-4 text-center">
+        <CardContent className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+            <div className="p-4 bg-muted rounded-lg">
+                <div className="text-sm text-muted-foreground">Peças</div>
+                <div className="text-2xl font-bold">{stopwatch.pieces}</div>
+            </div>
             <div className="p-4 bg-muted rounded-lg">
                 <div className="text-sm text-muted-foreground">Média Peças/Hora</div>
-                <div className="text-2xl font-bold">{currentPph.toFixed(0)}</div>
+                <div className="text-2xl font-bold">{isFinite(currentPph) ? currentPph.toFixed(0) : 0}</div>
             </div>
              <div className="p-4 bg-muted rounded-lg">
-                <div className="text-sm text-muted-foreground">Média Ajustada ({auxTime}%)</div>
-                <div className="text-2xl font-bold">{(currentPph / (1 - (auxTime / 100)) || 0).toFixed(0)}</div>
+                <div className="text-sm text-muted-foreground">Média Ajustada ({sessionDetails.auxiliaryTimePercent}%)</div>
+                <div className="text-2xl font-bold">{isFinite(adjustedPph) ? adjustedPph.toFixed(0) : 0}</div>
+            </div>
+             <div className="p-4 bg-muted rounded-lg">
+                <div className="text-sm text-muted-foreground">Estado</div>
+                <div className={cn("text-2xl font-bold", isFinished && "text-destructive")}>{isFinished ? "Finalizado" : stopwatch.isRunning ? 'Medindo' : 'Pronto'}</div>
             </div>
         </CardContent>
       </Card>
 
        <Card>
-        <CardHeader>
-          <CardTitle>Histórico do Dia</CardTitle>
+        <CardHeader className="flex flex-row items-center justify-between">
+            <div>
+                <CardTitle>Histórico do Dia</CardTitle>
+                <CardDescription>Últimas 25 medições.</CardDescription>
+            </div>
+             <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="destructive" size="sm" disabled={stopwatch.history.length === 0}>
+                    <Trash2 className="mr-2 h-4 w-4" /> Limpar
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Limpar histórico?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Esta ação não pode ser desfeita e removerá todos os registros de medição do dia.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                    <AlertDialogAction onClick={() => dispatch({ type: 'CLEAR_STOPWATCH_HISTORY' })}>
+                      Confirmar
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
         </CardHeader>
         <CardContent>
           {stopwatch.history.length > 0 ? (
@@ -191,7 +270,7 @@ export default function StopwatchPage() {
                     </TableRow>
                 </TableHeader>
                 <TableBody>
-                    {stopwatch.history.map((entry) => (
+                    {stopwatch.history.slice(0, 25).map((entry) => (
                         <TableRow key={entry.id}>
                             <TableCell className="font-medium">{entry.workerName}</TableCell>
                             <TableCell>{entry.functionName}</TableCell>
