@@ -130,9 +130,8 @@ const appReducer = produce((draft: AppState, action: Action) => {
     const saveStopwatchHistory = (profile: Profile) => {
         const { session, mode, initialTime, time, pieces } = profile.stopwatch;
         
-        const calculationDuration = mode === 'countdown' && initialTime > 0
-            ? initialTime
-            : time;
+        // For countdown, the intended duration is the initial time. For countup, it's the final time.
+        const calculationDuration = mode === 'countdown' && initialTime > 0 ? initialTime : time;
 
         const actualDuration = mode === 'countdown' ? initialTime - time : time;
         
@@ -173,6 +172,9 @@ const appReducer = produce((draft: AppState, action: Action) => {
 
         case 'ADMIN_LOGIN': {
             draft.isAdminAuthenticated = action.payload;
+            if (action.payload) { // if logging into admin, log out from profile
+                draft.activeProfileId = null;
+            }
             break;
         }
 
@@ -648,5 +650,7 @@ export const useAppContext = () => {
   }
   return context;
 };
+
+    
 
     
