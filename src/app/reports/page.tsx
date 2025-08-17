@@ -1,14 +1,18 @@
 "use client";
 
-import React, { useRef } from 'react';
+import React, { useRef, useState } from 'react';
 import Header from '@/components/Header';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useAppContext } from '@/contexts/AppContext';
 import { useToast } from '@/hooks/use-toast';
-import { Download, Upload, FileText, FileX2, Printer } from 'lucide-react';
+import { Download, Upload, FileText, FileX2, Printer, Loader2, BookCheck } from 'lucide-react';
 import type { Day, FunctionEntry } from '@/lib/types';
 import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import { generateDailyReport, GenerateDailyReportOutput } from '@/ai/flows/generate-daily-report';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import ReactMarkdown from 'react-markdown';
 
 
 const ProductionChart = ({ data }: { data: FunctionEntry[] }) => {
@@ -37,11 +41,73 @@ const ProductionChart = ({ data }: { data: FunctionEntry[] }) => {
   )
 }
 
+const ReportDialog = ({ report, isOpen, onClose }: { report: GenerateDailyReportOutput | null, isOpen: boolean, onClose: () => void }) => {
+  if (!report) return null;
+
+  return (
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="max-w-3xl w-[95vw] h-[90vh] flex flex-col">
+        <DialogHeader>
+          <DialogTitle>{report.reportTitle}</DialogTitle>
+          <DialogDescription>
+            Este é um resumo gerencial gerado automaticamente com base nos dados de produção do dia.
+          </DialogDescription>
+        </DialogHeader>
+        <ScrollArea className="flex-1 mt-4 pr-6">
+          <div className="prose prose-sm dark:prose-invert max-w-none">
+            <p className="text-base">{report.summary}</p>
+            
+            <ReactMarkdown
+              components={{
+                h2: ({node, ...props}) => <h2 className="text-xl font-bold mt-6 mb-2" {...props} />,
+                ul: ({node, ...props}) => <ul className="list-disc pl-5 space-y-1" {...props} />,
+                li: ({node, ...props}) => <li className="text-base" {...props} />,
+              }}
+            >
+              {`## Análise de Desempenho\n${report.performanceAnalysis}`}
+            </ReactMarkdown>
+            
+             <ReactMarkdown
+              components={{
+                h2: ({node, ...props}) => <h2 className="text-xl font-bold mt-6 mb-2" {...props} />,
+                ul: ({node, ...props}) => <ul className="list-disc pl-5 space-y-1" {...props} />,
+                 li: ({node, ...props}) => <li className="text-base" {...props} />,
+              }}
+            >
+              {`## Análise de Paradas\n${report.stoppageAnalysis}`}
+            </ReactMarkdown>
+            
+            <h2 className="text-xl font-bold mt-6 mb-2">Análise da Meta</h2>
+            <p className="text-base">{report.goalAnalysis}</p>
+
+            <ReactMarkdown
+              components={{
+                h2: ({node, ...props}) => <h2 className="text-xl font-bold mt-6 mb-2" {...props} />,
+                ul: ({node, ...props}) => <ul className="list-disc pl-5 space-y-1" {...props} />,
+                 li: ({node, ...props}) => <li className="text-base" {...props} />,
+              }}
+            >
+              {`## Recomendações\n${report.recommendations}`}
+            </ReactMarkdown>
+          </div>
+        </ScrollArea>
+        <DialogFooter>
+          <Button onClick={onClose}>Fechar</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
 
 export default function ReportsPage() {
   const { state, dispatch } = useAppContext();
   const { toast } = useToast();
   const restoreInputRef = useRef<HTMLInputElement>(null);
+  const [isGeneratingReport, setIsGeneratingReport] = useState(false);
+  const [reportData, setReportData] = useState<GenerateDailyReportOutput | null>(null);
+  const [isReportOpen, setIsReportOpen] = useState(false);
+
 
   const handleExportCSV = (day: Day) => {
     if (!day) {
@@ -157,25 +223,47 @@ export default function ReportsPage() {
     reader.readAsText(file);
   };
   
+  const handleGenerateReport = async () => {
+    if (!activeDay) return;
+    setIsGeneratingReport(true);
+    try {
+      const goalFunction = activeDay.functions.find(f => f.id === state.dailyGoal.functionId);
+
+      const report = await generateDailyReport({
+        productionData: JSON.stringify(activeDay.functions),
+        dailyGoal: JSON.stringify({
+          target: state.dailyGoal.target,
+          functionName: goalFunction?.name || 'N/A'
+        })
+      });
+      setReportData(report);
+      setIsReportOpen(true);
+    } catch(err) {
+      console.error("Erro ao gerar relatório", err);
+      toast({ title: 'Erro ao gerar relatório', description: 'Não foi possível se conectar com o serviço de análise.', variant: 'destructive' });
+    } finally {
+      setIsGeneratingReport(false);
+    }
+  }
+
   const activeDay = state.days.find(d => d.id === state.activeDayId);
 
   return (
     <div className="p-4 md:p-6 space-y-4">
       <Header title="Relatórios & Exportar" />
+      
       <Card>
         <CardHeader>
-          <CardTitle>Exportação do Dia</CardTitle>
+          <CardTitle>Resumo Gerencial</CardTitle>
           <CardDescription>
-            Exporte os dados do dia ativo ({activeDay ? new Date(activeDay.id+'T00:00:00').toLocaleDateString('pt-BR') : 'Nenhum'}) para análise externa.
+            Gere um relatório inteligente com a análise completa da produção do dia selecionado.
           </CardDescription>
         </CardHeader>
-        <CardContent className="flex flex-wrap gap-2">
-            <Button onClick={() => activeDay && handleExportCSV(activeDay)} disabled={!activeDay}>
-              <FileText className="mr-2"/> Exportar CSV do Dia
-            </Button>
-            <Button variant="secondary" disabled><FileX2 className="mr-2"/> Exportar XLSX</Button>
-            <Button variant="secondary" disabled><FileX2 className="mr-2"/> Exportar PDF</Button>
-            <Button variant="secondary" disabled><Printer className="mr-2"/> Imprimir</Button>
+        <CardContent>
+          <Button onClick={handleGenerateReport} disabled={!activeDay || isGeneratingReport}>
+            {isGeneratingReport ? <Loader2 className="mr-2 animate-spin"/> : <BookCheck className="mr-2" />}
+            {isGeneratingReport ? 'Analisando...' : 'Gerar Resumo do Dia'}
+          </Button>
         </CardContent>
       </Card>
 
@@ -194,6 +282,23 @@ export default function ReportsPage() {
                 {activeDay ? 'Nenhuma função para exibir.' : 'Selecione um dia para ver os relatórios.'}
              </p>
           )}
+        </CardContent>
+      </Card>
+      
+      <Card>
+        <CardHeader>
+          <CardTitle>Exportação do Dia</CardTitle>
+          <CardDescription>
+            Exporte os dados do dia ativo ({activeDay ? new Date(activeDay.id+'T00:00:00').toLocaleDateString('pt-BR') : 'Nenhum'}) para análise externa.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="flex flex-wrap gap-2">
+            <Button onClick={() => activeDay && handleExportCSV(activeDay)} disabled={!activeDay}>
+              <FileText className="mr-2"/> Exportar CSV do Dia
+            </Button>
+            <Button variant="secondary" disabled><FileX2 className="mr-2"/> Exportar XLSX</Button>
+            <Button variant="secondary" disabled><FileX2 className="mr-2"/> Exportar PDF</Button>
+            <Button variant="secondary" disabled><Printer className="mr-2"/> Imprimir</Button>
         </CardContent>
       </Card>
       
@@ -220,6 +325,8 @@ export default function ReportsPage() {
             />
         </CardContent>
       </Card>
+
+      <ReportDialog report={reportData} isOpen={isReportOpen} onClose={() => setIsReportOpen(false)} />
 
     </div>
   );
