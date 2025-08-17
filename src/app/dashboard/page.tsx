@@ -54,7 +54,7 @@ const CloneDayDialog = () => {
     return (
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>
-                <Button size="icon" variant="outline" title="Clonar Estrutura de Outro Dia">
+                <Button size="icon" variant="outline" title="Clonar Estrutura de Outro Dia" disabled={activeProfile.days.length === 0}>
                     <Copy className="h-4 w-4" />
                 </Button>
             </DialogTrigger>

@@ -410,12 +410,14 @@ const appReducer = produce((draft: AppState, action: Action) => {
                     }
                     break;
                 }
-                 case 'CLONE_DAY': {
-                    const sourceDay = activeProfile.days.find(d => d.id === action.payload.sourceDayId);
-                    const targetDayId = new Date().toISOString().split('T')[0];
-                    let targetDay = activeProfile.days.find(d => d.id === targetDayId);
-
+                case 'CLONE_DAY': {
+                    const { sourceDayId } = action.payload;
+                    const sourceDay = activeProfile.days.find(d => d.id === sourceDayId);
+                    
                     if (sourceDay) {
+                        const todayId = new Date().toISOString().split('T')[0];
+                        let targetDay = activeProfile.days.find(d => d.id === todayId);
+                        
                         const clonedFunctions: FunctionEntry[] = JSON.parse(JSON.stringify(sourceDay.functions));
                         clonedFunctions.forEach(func => {
                             func.id = uuidv4();
@@ -426,11 +428,12 @@ const appReducer = produce((draft: AppState, action: Action) => {
                         if (targetDay) {
                             targetDay.functions = clonedFunctions;
                         } else {
-                            targetDay = { id: targetDayId, functions: clonedFunctions };
+                            targetDay = { id: todayId, functions: clonedFunctions };
                             activeProfile.days.push(targetDay);
-                            activeProfile.days.sort((a, b) => new Date(a.id).getTime() - new Date(b.id).getTime());
                         }
-                        activeProfile.activeDayId = targetDayId;
+                        
+                        activeProfile.days.sort((a, b) => new Date(a.id).getTime() - new Date(b.id).getTime());
+                        activeProfile.activeDayId = todayId;
                     }
                     break;
                 }
