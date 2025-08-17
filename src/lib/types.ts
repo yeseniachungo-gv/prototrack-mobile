@@ -7,7 +7,7 @@ export interface Observation {
   worker: string;
   hour: string;
   pieces: number;
-  duration?: number; // for downtime
+  duration: number; // for downtime
 }
 
 export interface FunctionEntry {

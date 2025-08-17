@@ -1,11 +1,18 @@
 "use client";
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { useAppContext } from '@/contexts/AppContext';
 import { useToast } from '@/hooks/use-toast';
 import { ScrollArea } from './ui/scroll-area';
+import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
+import { Label } from './ui/label';
+import { Textarea } from './ui/textarea';
+import { Observation } from '@/lib/types';
+import { AlertTriangle, MessageSquare, Tag } from 'lucide-react';
+import { cn } from '@/lib/utils';
+
 
 interface FunctionSheetProps {
   dayId: string;
@@ -21,19 +28,29 @@ export default function FunctionSheet({ dayId, funcId, isOpen, onClose }: Functi
   const day = state.days.find(d => d.id === dayId);
   const func = day?.functions.find(f => f.id === funcId);
 
+  const [popoverState, setPopoverState] = useState<{
+    open: boolean;
+    worker: string;
+    hour: string;
+  }>({ open: false, worker: '', hour: '' });
+
+  const currentObservation = useMemo(() => {
+    if (!popoverState.open || !func) return null;
+    return func.observations.find(o => o.worker === popoverState.worker && o.hour === popoverState.hour) || null;
+  }, [popoverState, func]);
+
+
   const handlePieceChange = (workerIndex: number, hourIndex: number, value: string) => {
     if (!day || !func) return;
-
-    const updatedWorkers = [...func.workers];
-    const updatedObservations = [...func.observations];
     
-    const workerName = updatedWorkers[workerIndex];
+    const workerName = func.workers[workerIndex];
     const hour = func.hours[hourIndex];
 
-    let obsIndex = updatedObservations.findIndex(o => o.worker === workerName && o.hour === hour);
-    
+    let obsIndex = func.observations.findIndex(o => o.worker === workerName && o.hour === hour);
+    let observation: Observation;
+
     if (obsIndex === -1) {
-      updatedObservations.push({
+       observation = {
         id: crypto.randomUUID(),
         timestamp: new Date().getTime(),
         type: 'note',
@@ -43,20 +60,47 @@ export default function FunctionSheet({ dayId, funcId, isOpen, onClose }: Functi
         reason: '',
         detail: '',
         duration: 0,
-      });
+      };
     } else {
-      updatedObservations[obsIndex] = {
-        ...updatedObservations[obsIndex],
+       observation = {
+        ...func.observations[obsIndex],
         pieces: parseInt(value) || 0,
       };
     }
-    
-    const updatedFunction = { ...func, observations: updatedObservations };
-    dispatch({ type: 'UPDATE_FUNCTION', payload: { dayId: day.id, functionData: updatedFunction }});
+
+    dispatch({ type: 'UPDATE_OBSERVATION', payload: { dayId: day.id, functionId: func.id, observation }});
   };
 
-  const getPiecesForCell = (workerName: string, hour: string): number => {
-    return func?.observations.find(obs => obs.worker === workerName && obs.hour === hour)?.pieces || 0;
+  const handleObsChange = (field: keyof Observation, value: string | number) => {
+    if (!day || !func || !popoverState.open) return;
+    
+    let obsIndex = func.observations.findIndex(o => o.worker === popoverState.worker && o.hour === popoverState.hour);
+    let observation: Observation;
+
+    if (obsIndex === -1) {
+       observation = {
+        id: crypto.randomUUID(),
+        timestamp: new Date().getTime(),
+        type: 'note',
+        worker: popoverState.worker,
+        hour: popoverState.hour,
+        pieces: 0,
+        reason: '',
+        detail: '',
+        duration: 0,
+        [field]: value
+      };
+    } else {
+       observation = {
+        ...func.observations[obsIndex],
+        [field]: value
+      };
+    }
+     dispatch({ type: 'UPDATE_OBSERVATION', payload: { dayId: day.id, functionId: func.id, observation }});
+  }
+
+  const getCellData = (workerName: string, hour: string) => {
+    return func?.observations.find(obs => obs.worker === workerName && obs.hour === hour);
   };
 
   const handleWorkerNameChange = (workerIndex: number, newName: string) => {
@@ -66,7 +110,6 @@ export default function FunctionSheet({ dayId, funcId, isOpen, onClose }: Functi
     const updatedWorkers = [...func.workers];
     updatedWorkers[workerIndex] = newName.trim();
 
-    // Update observations to reflect the new worker name
     const updatedObservations = func.observations.map(obs => {
         if (obs.worker === oldName) {
             return { ...obs, worker: newName.trim() };
@@ -120,14 +163,14 @@ export default function FunctionSheet({ dayId, funcId, isOpen, onClose }: Functi
       return;
     }
 
-    const updatedHours = [...func.hours, nextHour].sort();
+    const updatedHours = [...func.hours, nextHour].sort((a,b) => a.localeCompare(b));
     const updatedFunction = { ...func, hours: updatedHours };
     dispatch({ type: 'UPDATE_FUNCTION', payload: { dayId: day.id, functionData: updatedFunction } });
   };
 
   const handleClearSheet = () => {
     if (!day || !func || !confirm("Zerar todos os valores desta planilha?")) return;
-    const updatedObservations = func.observations.map(obs => ({ ...obs, pieces: 0 }));
+    const updatedObservations = func.observations.map(obs => ({ ...obs, pieces: 0, reason:'', detail:'', type:'note', duration:0 }));
     const updatedFunction = { ...func, observations: updatedObservations };
     dispatch({ type: 'UPDATE_FUNCTION', payload: { dayId: day.id, functionData: updatedFunction }});
     toast({ title: "Planilha zerada." });
@@ -136,9 +179,16 @@ export default function FunctionSheet({ dayId, funcId, isOpen, onClose }: Functi
   const hourlyTotals = useMemo(() => {
     if (!func) return [];
     return func.hours.map(hour => 
-      func.workers.reduce((total, worker) => total + (getPiecesForCell(worker, hour) || 0), 0)
+      func.observations.reduce((total, obs) => obs.hour === hour ? total + (obs.pieces || 0) : total, 0)
     );
   }, [func]);
+  
+  const workerTotals = useMemo(() => {
+     if (!func) return [];
+     return func.workers.map(worker =>
+        func.observations.reduce((total, obs) => obs.worker === worker ? total + (obs.pieces || 0) : total, 0)
+     )
+  }, [func])
 
   if (!func || !day) return null;
   
@@ -155,44 +205,100 @@ export default function FunctionSheet({ dayId, funcId, isOpen, onClose }: Functi
             <Button size="sm" variant="destructive" onClick={onClose} className="ml-auto">Fechar</Button>
           </div>
         </DialogHeader>
-        <ScrollArea className="flex-1 w-full">
+        <ScrollArea className="w-full">
           <div className="relative p-1">
             <table className="w-full border-collapse">
               <thead className="sticky top-0 bg-card z-10">
                 <tr>
                   <th className="p-2 border font-bold min-w-[170px] text-left">Trabalhador</th>
                   {func.hours.map(hour => (
-                    <th key={hour} className="p-2 border font-bold min-w-[80px]">{hour}</th>
+                    <th key={hour} className="p-2 border font-bold min-w-[100px]">{hour}</th>
                   ))}
+                  <th className="p-2 border font-bold min-w-[80px]">Total</th>
                 </tr>
               </thead>
               <tbody>
                 {func.workers.map((worker, workerIndex) => (
                   <tr key={workerIndex}>
                     <td className="p-1 border align-middle">
-                      <div className="flex items-center gap-1">
-                        <Input
-                          value={worker}
-                          onChange={(e) => handleWorkerNameChange(workerIndex, e.target.value)}
-                          className="font-bold flex-1"
-                          aria-label={`Nome do trabalhador ${workerIndex + 1}`}
-                        />
-                         <Button variant="ghost" size="icon" className="w-7 h-7" onClick={() => handleDeleteWorker(workerIndex)}>
+                       <div className="flex items-center gap-1">
+                          <Button variant="ghost" size="icon" className="w-7 h-7" onClick={() => handleDeleteWorker(workerIndex)}>
                             <span className="text-red-500 text-xl">×</span>
-                        </Button>
-                      </div>
+                          </Button>
+                          <Input
+                            value={worker}
+                            onChange={(e) => handleWorkerNameChange(workerIndex, e.target.value)}
+                            className="font-bold flex-1"
+                            aria-label={`Nome do trabalhador ${workerIndex + 1}`}
+                          />
+                       </div>
                     </td>
-                    {func.hours.map((hour, hourIndex) => (
+                    {func.hours.map((hour, hourIndex) => {
+                       const cellData = getCellData(worker, hour);
+                       const hasObs = cellData?.reason || cellData?.detail;
+                       return(
                        <td key={hourIndex} className="p-1 border align-middle">
-                         <Input
-                           type="number"
-                           value={getPiecesForCell(worker, hour)}
-                           onChange={(e) => handlePieceChange(workerIndex, hourIndex, e.target.value)}
-                           className="w-full text-center"
-                           aria-label={`Peças para ${worker} às ${hour}`}
-                         />
+                         <div className="flex items-center gap-1">
+                           <Input
+                             type="number"
+                             value={cellData?.pieces || 0}
+                             onChange={(e) => handlePieceChange(workerIndex, hourIndex, e.target.value)}
+                             className="w-full text-center"
+                             aria-label={`Peças para ${worker} às ${hour}`}
+                           />
+                           <Popover
+                              open={popoverState.open && popoverState.worker === worker && popoverState.hour === hour}
+                              onOpenChange={(open) => setPopoverState({ open, worker, hour })}
+                            >
+                              <PopoverTrigger asChild>
+                                  <Button variant="ghost" size="icon" className={cn("w-7 h-7", hasObs && "bg-accent/30")}>
+                                      {cellData?.type === 'downtime' && <AlertTriangle className="w-4 h-4 text-orange-400" />}
+                                      {cellData?.type === 'defect' && <Tag className="w-4 h-4 text-red-500" />}
+                                      {(!cellData?.type || cellData.type === 'note') && <MessageSquare className={cn("w-4 h-4", hasObs ? 'text-accent' : 'text-muted-foreground/50')} />}
+                                  </Button>
+                              </PopoverTrigger>
+                              <PopoverContent className="w-80">
+                                <div className="grid gap-4">
+                                  <div className="space-y-2">
+                                    <h4 className="font-medium leading-none">Observação</h4>
+                                    <p className="text-sm text-muted-foreground">
+                                       Adicione detalhes para {worker} às {hour}.
+                                    </p>
+                                  </div>
+                                  <div className="grid gap-2">
+                                    <div className="grid grid-cols-3 items-center gap-4">
+                                      <Label htmlFor="obs-type">Tipo</Label>
+                                       <div className="col-span-2 flex gap-1">
+                                          <Button size="sm" variant={currentObservation?.type === 'note' || !currentObservation ? 'secondary' : 'outline'} onClick={()=>handleObsChange('type', 'note')}>Nota</Button>
+                                          <Button size="sm" variant={currentObservation?.type === 'downtime' ? 'secondary' : 'outline'} onClick={()=>handleObsChange('type', 'downtime')}>Parada</Button>
+                                          <Button size="sm" variant={currentObservation?.type === 'defect' ? 'secondary' : 'outline'} onClick={()=>handleObsChange('type', 'defect')}>Defeito</Button>
+                                       </div>
+                                    </div>
+                                     {currentObservation?.type === 'downtime' && (
+                                       <div className="grid grid-cols-3 items-center gap-4">
+                                         <Label htmlFor="obs-duration">Duração (min)</Label>
+                                         <Input id="obs-duration" type="number" value={currentObservation?.duration || ''} onChange={e=>handleObsChange('duration', parseInt(e.target.value))} className="col-span-2 h-8" />
+                                       </div>
+                                     )}
+                                    <div className="grid grid-cols-3 items-center gap-4">
+                                      <Label htmlFor="obs-reason">Motivo</Label>
+                                      <Input id="obs-reason" value={currentObservation?.reason || ''} onChange={e=>handleObsChange('reason', e.target.value)} className="col-span-2 h-8" />
+                                    </div>
+                                    <div className="grid grid-cols-3 items-center gap-4">
+                                      <Label htmlFor="obs-detail">Detalhe</Label>
+                                      <Textarea id="obs-detail" value={currentObservation?.detail || ''} onChange={e=>handleObsChange('detail', e.target.value)} className="col-span-2" rows={3}/>
+                                    </div>
+                                  </div>
+                                </div>
+                              </PopoverContent>
+                            </Popover>
+                         </div>
                        </td>
-                    ))}
+                       )
+                    })}
+                     <td className="p-1 border align-middle text-center font-bold">
+                        {workerTotals[workerIndex]}
+                     </td>
                   </tr>
                 ))}
                 <tr className="bg-muted">
@@ -200,6 +306,9 @@ export default function FunctionSheet({ dayId, funcId, isOpen, onClose }: Functi
                     {hourlyTotals.map((total, index) => (
                         <td key={index} className="p-2 border font-bold text-center">{total}</td>
                     ))}
+                    <td className="p-2 border font-bold text-center bg-primary text-primary-foreground">
+                        {hourlyTotals.reduce((a,b) => a+b, 0)}
+                    </td>
                 </tr>
               </tbody>
             </table>
