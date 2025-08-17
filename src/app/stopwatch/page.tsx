@@ -239,11 +239,11 @@ export default function StopwatchPage() {
             </div>
             <div className="p-4 bg-muted rounded-lg">
                 <div className="text-sm text-muted-foreground">Média Peças/Hora</div>
-                <div className="text-2xl font-bold">{isFinite(currentPph) ? currentPph.toFixed(0) : 0}</div>
+                <div className="text-2xl font-bold">{currentPph.toFixed(0)}</div>
             </div>
              <div className="p-4 bg-muted rounded-lg">
                 <div className="text-sm text-muted-foreground">Média Ajustada ({localStopwatch.session.auxiliaryTimePercent}%)</div>
-                <div className="text-2xl font-bold">{isFinite(adjustedPph) ? adjustedPph.toFixed(0) : 0}</div>
+                <div className="text-2xl font-bold">{adjustedPph.toFixed(0)}</div>
             </div>
              <div className="p-4 bg-muted rounded-lg">
                 <div className="text-sm text-muted-foreground">Estado</div>
@@ -305,7 +305,7 @@ export default function StopwatchPage() {
                             <TableCell className="text-center">{entry.pieces}</TableCell>
                             <TableCell className="text-center font-mono">{formatTime(entry.duration)}</TableCell>
                             <TableCell className="text-center font-mono">{entry.averagePerHour.toFixed(0)}</TableCell>
-                            <TableCell className="text-right font-mono">{(entry.adjustedAveragePerHour ?? 0).toFixed(0)}</TableCell>
+                            <TableCell className="text-right font-mono">{entry.adjustedAveragePerHour.toFixed(0)}</TableCell>
                         </TableRow>
                     ))}
                 </TableBody>
