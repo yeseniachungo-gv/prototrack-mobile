@@ -11,9 +11,7 @@ import { Download, Upload, FileText, FileX2, Printer, Loader2, BookCheck } from 
 import type { Day, FunctionEntry, Profile } from '@/lib/types';
 import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { generateDailyReport, GenerateDailyReportOutput } from '@/ai/flows/generate-daily-report';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import ReactMarkdown from 'react-markdown';
+import ReportDialog from '@/components/ReportDialog';
 
 
 const ProductionChart = ({ data }: { data: FunctionEntry[] }) => {
@@ -41,65 +39,6 @@ const ProductionChart = ({ data }: { data: FunctionEntry[] }) => {
       </ResponsiveContainer>
   )
 }
-
-const ReportDialog = ({ report, isOpen, onClose }: { report: GenerateDailyReportOutput | null, isOpen: boolean, onClose: () => void }) => {
-  if (!report) return null;
-
-  return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-3xl w-[95vw] h-[90vh] flex flex-col">
-        <DialogHeader>
-          <DialogTitle>{report.reportTitle}</DialogTitle>
-          <DialogDescription>
-            Este é um resumo gerencial gerado automaticamente com base nos dados de produção do dia.
-          </DialogDescription>
-        </DialogHeader>
-        <ScrollArea className="flex-1 mt-4 pr-6">
-          <div className="prose prose-sm dark:prose-invert max-w-none">
-            <p className="text-base">{report.summary}</p>
-            
-            <ReactMarkdown
-              components={{
-                h2: ({node, ...props}) => <h2 className="text-xl font-bold mt-6 mb-2" {...props} />,
-                ul: ({node, ...props}) => <ul className="list-disc pl-5 space-y-1" {...props} />,
-                li: ({node, ...props}) => <li className="text-base" {...props} />,
-              }}
-            >
-              {`## Análise de Desempenho\n${report.performanceAnalysis}`}
-            </ReactMarkdown>
-            
-             <ReactMarkdown
-              components={{
-                h2: ({node, ...props}) => <h2 className="text-xl font-bold mt-6 mb-2" {...props} />,
-                ul: ({node, ...props}) => <ul className="list-disc pl-5 space-y-1" {...props} />,
-                 li: ({node, ...props}) => <li className="text-base" {...props} />,
-              }}
-            >
-              {`## Análise de Paradas\n${report.stoppageAnalysis}`}
-            </ReactMarkdown>
-            
-            <h2 className="text-xl font-bold mt-6 mb-2">Análise da Meta</h2>
-            <p className="text-base">{report.goalAnalysis}</p>
-
-            <ReactMarkdown
-              components={{
-                h2: ({node, ...props}) => <h2 className="text-xl font-bold mt-6 mb-2" {...props} />,
-                ul: ({node, ...props}) => <ul className="list-disc pl-5 space-y-1" {...props} />,
-                 li: ({node, ...props}) => <li className="text-base" {...props} />,
-              }}
-            >
-              {`## Recomendações\n${report.recommendations}`}
-            </ReactMarkdown>
-          </div>
-        </ScrollArea>
-        <DialogFooter>
-          <Button onClick={onClose}>Fechar</Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  )
-}
-
 
 export default function ReportsPage() {
   const { state, dispatch, activeProfile, activeDay } = useAppContext();
@@ -317,7 +256,20 @@ export default function ReportsPage() {
         </CardContent>
       </Card>
 
-      <ReportDialog report={reportData} isOpen={isReportOpen} onClose={() => setIsReportOpen(false)} />
+      {reportData && (
+         <ReportDialog
+            title={reportData.reportTitle}
+            summary={reportData.summary}
+            sections={[
+                { title: 'Análise de Desempenho', content: reportData.performanceAnalysis },
+                { title: 'Análise de Paradas', content: reportData.stoppageAnalysis },
+                { title: 'Análise da Meta', content: reportData.goalAnalysis },
+                { title: 'Recomendações', content: reportData.recommendations },
+            ]}
+            isOpen={isReportOpen}
+            onClose={() => setIsReportOpen(false)}
+        />
+      )}
 
     </div>
   );
