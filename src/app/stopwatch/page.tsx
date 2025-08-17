@@ -14,6 +14,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
+import { format, parseISO } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -285,6 +287,7 @@ export default function StopwatchPage() {
                     <TableRow>
                         <TableHead>Operador</TableHead>
                         <TableHead>Função</TableHead>
+                        <TableHead>Data & Hora</TableHead>
                         <TableHead className="text-center">Peças</TableHead>
                         <TableHead className="text-center">Tempo</TableHead>
                         <TableHead className="text-center">Média/h</TableHead>
@@ -296,6 +299,9 @@ export default function StopwatchPage() {
                         <TableRow key={entry.id}>
                             <TableCell className="font-medium">{entry.workerName}</TableCell>
                             <TableCell>{entry.functionName}</TableCell>
+                            <TableCell className="text-muted-foreground text-xs">
+                                {format(parseISO(entry.endTime), 'dd/MM/yy HH:mm', { locale: ptBR })}
+                            </TableCell>
                             <TableCell className="text-center">{entry.pieces}</TableCell>
                             <TableCell className="text-center font-mono">{formatTime(entry.duration)}</TableCell>
                             <TableCell className="text-center font-mono">{entry.averagePerHour.toFixed(0)}</TableCell>
@@ -312,3 +318,5 @@ export default function StopwatchPage() {
     </div>
   );
 }
+
+    
