@@ -17,8 +17,23 @@ export interface Day {
   functions: FunctionEntry[];
 }
 
+export interface StopwatchHistoryEntry {
+    id: string;
+    endTime: string; // ISO string
+    duration: number; // in seconds
+    pieces: number;
+}
+
+export interface StopwatchState {
+    time: number;
+    pieces: number;
+    isRunning: boolean;
+    history: StopwatchHistoryEntry[];
+}
+
 export interface AppState {
   days: Day[];
   activeDayId: string | null;
   theme: 'light' | 'dark';
+  stopwatch: StopwatchState;
 }

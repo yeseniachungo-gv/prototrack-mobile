@@ -1,10 +1,9 @@
 "use client";
 
-import React, { createContext, useReducer, useContext, useEffect } from 'react';
+import React, { createContext, useReducer, useContext, useEffect, useRef } from 'react';
 import { produce } from 'immer';
-import type { AppState, Day, FunctionEntry, Observation } from '@/lib/types';
+import type { AppState, Day, FunctionEntry, Observation, StopwatchState } from '@/lib/types';
 import { v4 as uuidv4 } from 'uuid';
-
 
 type Action =
   | { type: 'TOGGLE_THEME' }
@@ -19,7 +18,11 @@ type Action =
   | { type: 'ADD_HOUR_TO_FUNCTION', payload: { dayId: string; functionId: string } }
   | { type: 'DELETE_HOUR_FROM_FUNCTION', payload: { dayId: string; functionId: string; hour: string } }
   | { type: 'UPDATE_PIECES', payload: { dayId: string; functionId: string; worker: string; hour: string; value: number } }
-  | { type: 'UPDATE_OBSERVATION', payload: { dayId: string; functionId: string; worker: string; hour: string; reason: string; detail: string } };
+  | { type: 'UPDATE_OBSERVATION', payload: { dayId: string; functionId: string; worker: string; hour: string; reason: string; detail: string } }
+  | { type: 'TOGGLE_TIMER' }
+  | { type: 'RESET_TIMER' }
+  | { type: 'TICK' }
+  | { type: 'ADD_PIECE', payload: number };
 
 
 const APP_STATE_KEY = 'prototrack-state-v2';
@@ -30,6 +33,12 @@ function getInitialState(): AppState {
     days: [{ id: today, functions: [] }],
     activeDayId: today,
     theme: 'dark',
+    stopwatch: {
+        time: 0,
+        pieces: 0,
+        isRunning: false,
+        history: []
+    }
   };
 }
 
@@ -42,46 +51,75 @@ const AppContext = createContext<{
 
 const appReducer = (state: AppState, action: Action): AppState => {
   return produce(state, draft => {
-    const day = draft.days.find(d => d.id === draft.activeDayId);
-    
-    // As ações que não precisam de um dia ativo são tratadas primeiro
+    // Ações que não dependem de um dia ativo
     switch (action.type) {
       case 'TOGGLE_THEME':
         draft.theme = draft.theme === 'dark' ? 'light' : 'dark';
-        break;
+        return;
       case 'SET_STATE':
         return action.payload;
       case 'SET_ACTIVE_DAY':
         if (draft.days.find(d => d.id === action.payload)) {
           draft.activeDayId = action.payload;
         }
-        break;
+        return;
       case 'ADD_DAY': {
         const today = new Date();
-        const nextDay = new Date(draft.days[draft.days.length - 1]?.id + 'T00:00:00' || today);
+        const lastDayInState = draft.days.reduce((latest, day) => new Date(day.id) > new Date(latest.id) ? day : latest, draft.days[0]);
+        const nextDay = new Date(lastDayInState.id + 'T00:00:00');
         nextDay.setDate(nextDay.getDate() + 1);
         const newDayId = nextDay.toISOString().split('T')[0];
-
+        
         if (!draft.days.find(d => d.id === newDayId)) {
-          const lastDay = draft.days[draft.days.length - 1];
-          const newDay: Day = {
-            id: newDayId,
-            functions: lastDay ? JSON.parse(JSON.stringify(lastDay.functions)) : [],
-          };
-          newDay.functions.forEach(func => {
+          const functionsTemplate = JSON.parse(JSON.stringify(lastDayInState.functions));
+          functionsTemplate.forEach((func: FunctionEntry) => {
             func.pieces = {};
             func.observations = {};
           });
+          
+          const newDay: Day = { id: newDayId, functions: functionsTemplate };
           draft.days.push(newDay);
           draft.activeDayId = newDayId;
         }
-        break;
+        return;
       }
+      // Ações do Cronômetro
+      case 'TOGGLE_TIMER':
+          draft.stopwatch.isRunning = !draft.stopwatch.isRunning;
+          if (!draft.stopwatch.isRunning && draft.stopwatch.time > 0) {
+              // Adicionar ao histórico quando o timer para
+              draft.stopwatch.history.unshift({
+                  id: uuidv4(),
+                  endTime: new Date().toISOString(),
+                  duration: draft.stopwatch.time,
+                  pieces: draft.stopwatch.pieces
+              });
+              // Resetar para a próxima medição
+              draft.stopwatch.time = 0;
+              draft.stopwatch.pieces = 0;
+          }
+          return;
+      case 'RESET_TIMER':
+          draft.stopwatch.isRunning = false;
+          draft.stopwatch.time = 0;
+          draft.stopwatch.pieces = 0;
+          return;
+      case 'ADD_PIECE':
+          if (draft.stopwatch.isRunning) {
+              draft.stopwatch.pieces += action.payload;
+          }
+          return;
+      case 'TICK':
+          if (draft.stopwatch.isRunning) {
+              draft.stopwatch.time += 1;
+          }
+          return;
     }
 
     // Ações que OPERAM sobre um dia (e possivelmente uma função)
+    const day = draft.days.find(d => d.id === draft.activeDayId);
     if (day) {
-        const { payload } = action as any; // Para evitar repetição
+        const { payload } = action as any; 
         const func = payload?.functionId ? day.functions.find(f => f.id === payload.functionId) : undefined;
         
         switch (action.type) {
@@ -167,12 +205,17 @@ const appReducer = (state: AppState, action: Action): AppState => {
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [state, dispatch] = useReducer(appReducer, getInitialState());
   const [isInitialized, setIsInitialized] = React.useState(false);
-  
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Carregar estado do localStorage na inicialização
   useEffect(() => {
     try {
-      const savedState = localStorage.getItem(APP_STATE_KEY);
-      if (savedState) {
-        dispatch({ type: 'SET_STATE', payload: JSON.parse(savedState) });
+      const savedStateString = localStorage.getItem(APP_STATE_KEY);
+      if (savedStateString) {
+        const savedState = JSON.parse(savedStateString);
+        // Reseta o estado do cronômetro ao carregar, ele não persiste
+        savedState.stopwatch = getInitialState().stopwatch;
+        dispatch({ type: 'SET_STATE', payload: savedState });
       }
     } catch (e) {
       console.error("Falha ao carregar o estado, usando o estado inicial.", e);
@@ -180,26 +223,51 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setIsInitialized(true);
   }, []);
 
+  // Salvar estado no localStorage sempre que mudar
   useEffect(() => {
     if (isInitialized) {
       try {
-        localStorage.setItem(APP_STATE_KEY, JSON.stringify(state));
+        const stateToSave = { ...state };
+        // Não salva o estado em tempo real do cronômetro
+        delete (stateToSave as any).stopwatch; 
+        localStorage.setItem(APP_STATE_KEY, JSON.stringify(stateToSave));
       } catch (e) {
         console.error("Falha ao salvar o estado.", e)
       }
     }
   }, [state, isInitialized]);
-
+  
+  // Efeito para o tema
   useEffect(() => {
     const isDark = state.theme === 'dark';
     document.documentElement.classList.toggle('dark', isDark);
     document.documentElement.classList.toggle('light', !isDark);
   }, [state.theme]);
   
+  // Efeito para o timer do cronômetro
+  useEffect(() => {
+    if (state.stopwatch.isRunning) {
+      timerRef.current = setInterval(() => {
+        dispatch({ type: 'TICK' });
+      }, 1000);
+    } else {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
+    }
+
+    return () => {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+      }
+    };
+  }, [state.stopwatch.isRunning]);
+
   const activeDay = state.days.find(d => d.id === state.activeDayId) || null;
 
   if (!isInitialized) {
-    return null; // Evita renderizar no lado do servidor ou antes da hidratação
+    return null; 
   }
 
   return (
