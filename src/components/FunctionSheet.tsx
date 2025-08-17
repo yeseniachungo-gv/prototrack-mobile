@@ -105,7 +105,7 @@ export default function FunctionSheet({ dayId, funcId, isOpen, onClose }: Functi
                     <td className="p-2 border font-bold">{hour}</td>
                     {func.workers.map(worker => {
                       const cellData = getCellData(worker, hour);
-                      const hasObs = cellData?.reason || cellDatar?.detail;
+                      const hasObs = cellData?.reason || cellData?.detail;
                       return (
                         <td key={worker} className="p-2 border align-top">
                           <div className="space-y-2">
