@@ -6,7 +6,7 @@ import Header from '@/components/Header';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useAppContext } from '@/contexts/AppContext';
-import { Play, Pause, RotateCcw, Trash2 } from 'lucide-react';
+import { Play, Pause, RotateCcw, Trash2, Minus, Plus } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { cn } from '@/lib/utils';
 import { Input } from '@/components/ui/input';
@@ -124,7 +124,43 @@ export default function StopwatchPage() {
               </TabsList>
             </Tabs>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+            <div className="space-y-2">
+              <Label>Intervalo</Label>
+               <div className="flex justify-start gap-2 flex-wrap">
+                {timePresets.map(preset => (
+                  <Button 
+                      key={preset.seconds}
+                      variant={stopwatch.initialTime === preset.seconds && stopwatch.mode === 'countdown' ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => handleSetTime(preset.seconds)}
+                      disabled={stopwatch.isRunning || stopwatch.mode !== 'countdown'}
+                  >
+                      {preset.label}
+                  </Button>
+                ))}
+             </div>
+            </div>
+
+            <div className="space-y-2">
+                <Label>Controles</Label>
+                <div className="flex justify-start gap-2 flex-wrap">
+                    {!stopwatch.isRunning ? (
+                        <Button onClick={handleStart} className="w-32">
+                            <Play className="mr-2"/> Iniciar
+                        </Button>
+                    ) : (
+                        <Button variant="destructive" onClick={handleStop} className="w-32">
+                            <Pause className="mr-2"/> Finalizar
+                        </Button>
+                    )}
+                    <Button variant="outline" onClick={handleReset} disabled={stopwatch.isRunning}>
+                        <RotateCcw className="mr-2"/> Zerar
+                    </Button>
+                </div>
+            </div>
+
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                     <Label htmlFor="operator">Operador</Label>
                     <Input id="operator" placeholder="Nome do operador" value={sessionDetails.operator} onChange={handleInputChange} disabled={stopwatch.isRunning}/>
@@ -138,72 +174,36 @@ export default function StopwatchPage() {
                     <Input id="auxiliaryTimePercent" type="number" value={sessionDetails.auxiliaryTimePercent} onChange={handleInputChange} disabled={stopwatch.isRunning}/>
                 </div>
             </div>
+
+            <div className='relative pt-4 pb-2'>
+              <div 
+                  className={cn(
+                      "text-6xl md:text-8xl text-center font-bold font-mono text-primary transition-colors duration-300",
+                      isFinished && "text-destructive"
+                  )}
+              >
+                  {formatTime(stopwatch.time)}
+              </div>
+              {stopwatch.mode === 'countdown' && (
+                  <div className="w-full bg-muted rounded-full h-2.5 mt-2">
+                      <div className="bg-primary h-2.5 rounded-full" style={{width: `${progressBarWidth}%`}}></div>
+                  </div>
+              )}
+            </div>
         </CardContent>
       </Card>
       
-      <Card className="text-center">
-        <CardHeader>
-            <CardTitle>
-                {stopwatch.mode === 'countdown' ? 'Intervalo de Medição' : 'Contador'}
-            </CardTitle>
-        </CardHeader>
-        <CardContent className="p-6">
-           {stopwatch.mode === 'countdown' && (
-             <div className="flex justify-center gap-2 mb-6 flex-wrap">
-                {timePresets.map(preset => (
-                  <Button 
-                      key={preset.seconds}
-                      variant={stopwatch.initialTime === preset.seconds ? "default" : "outline"}
-                      size="sm"
-                      onClick={() => handleSetTime(preset.seconds)}
-                      disabled={stopwatch.isRunning}
-                  >
-                      {preset.label}
-                  </Button>
-                ))}
-             </div>
-           )}
-          
-          <div className='relative mb-4'>
-            <div 
-                className={cn(
-                    "text-8xl font-bold font-mono text-primary transition-colors duration-300",
-                    isFinished && "text-destructive"
-                )}
-            >
-                {formatTime(stopwatch.time)}
-            </div>
-            {stopwatch.mode === 'countdown' && (
-                <div className="w-full bg-muted rounded-full h-2.5 mt-2">
-                    <div className="bg-primary h-2.5 rounded-full" style={{width: `${progressBarWidth}%`}}></div>
-                </div>
-            )}
-          </div>
+      <div className="flex justify-center items-center gap-4 my-4">
+        <Button size="icon" variant="outline" className="w-16 h-16 rounded-full" onClick={handleUndoPiece} disabled={stopwatch.pieces === 0}>
+            <Minus className="h-8 w-8"/>
+        </Button>
+        <Button size="icon" className="w-24 h-24 rounded-full text-4xl font-bold relative" onClick={handleAddPiece} disabled={!stopwatch.isRunning}>
+            {stopwatch.pieces}
+            <Plus className="absolute bottom-4 right-4 h-6 w-6 opacity-75"/>
+        </Button>
+        <div className="w-16 h-16"></div>
+      </div>
 
-          <div className="flex justify-center items-center gap-4 my-8">
-            <Button size="icon" variant="outline" className="w-14 h-14 rounded-full text-2xl" onClick={handleUndoPiece} disabled={!stopwatch.isRunning && stopwatch.pieces === 0}>-</Button>
-            <Button size="icon" className="w-24 h-24 rounded-full text-5xl" onClick={handleAddPiece} disabled={!stopwatch.isRunning}>
-                {stopwatch.pieces}
-            </Button>
-            <div className="w-14 h-14"></div>
-          </div>
-          
-          <div className="flex justify-center gap-4">
-            {!stopwatch.isRunning ? (
-                <Button size="lg" onClick={handleStart} className="w-40">
-                    <Play className="mr-2"/> Iniciar
-                </Button>
-            ) : (
-                <Button size="lg" variant="destructive" onClick={handleStop} className="w-40">
-                    <Pause className="mr-2"/> Finalizar
-                </Button>
-            )}
-            <Button size="lg" variant="outline" onClick={handleReset} disabled={stopwatch.isRunning}>
-                <RotateCcw className="mr-2"/> Zerar
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
 
       <Card>
         <CardHeader>
@@ -224,7 +224,7 @@ export default function StopwatchPage() {
             </div>
              <div className="p-4 bg-muted rounded-lg">
                 <div className="text-sm text-muted-foreground">Estado</div>
-                <div className={cn("text-2xl font-bold", isFinished && "text-destructive")}>{isFinished ? "Finalizado" : stopwatch.isRunning ? 'Medindo' : 'Pronto'}</div>
+                <div className={cn("text-2xl font-bold capitalize", isFinished && "text-destructive")}>{isFinished ? "Finalizado" : stopwatch.isRunning ? 'Medindo' : 'Pronto'}</div>
             </div>
         </CardContent>
       </Card>
