@@ -378,7 +378,7 @@ export default function AdminPage() {
                      {!hasAI && <span className="text-amber-500 block mt-1"> (Funcionalidade Pro/Premium)</span>}
                      {!isOnline && <span className="text-amber-500 block mt-1"> (Requer Internet)</span>}
                 </CardDescription>
-            </Header>
+            </CardHeader>
            <CardContent>
             <Button onClick={handleGenerateConsolidatedReport} disabled={isGenerating || !hasAI || !isOnline}>
                 {isGenerating ? <Loader2 className="mr-2 animate-spin"/> : !isOnline ? <WifiOff className="mr-2"/> : <BookCheck className="mr-2" />}
