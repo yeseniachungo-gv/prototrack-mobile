@@ -32,11 +32,9 @@ export default function SettingsPage() {
       <Card>
         <CardHeader><CardTitle>AI</CardTitle></CardHeader>
         <CardContent className="flex flex-wrap gap-2">
-          <p className="text-muted-foreground w-full mb-2">Use a IA para obter sugestões sobre como melhorar seus protótipos.</p>
-          <Button onClick={() => toast({title: "Em breve!"})}>Obter Sugestões</Button>
+          <p className="text-muted-foreground w-full mb-2">As funcionalidades de IA serão implementadas aqui.</p>
         </CardContent>
       </Card>
-
     </div>
   );
 }
