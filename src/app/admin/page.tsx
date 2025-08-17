@@ -4,7 +4,7 @@
 import React, { useState, useMemo } from 'react';
 import Header from '@/components/Header';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { ShieldCheck, Users, BarChart2, Loader2, BookCheck, Plus, Trash2, HardHat, AlertTriangle } from 'lucide-react';
+import { ShieldCheck, Users, BarChart2, Loader2, BookCheck, Plus, Trash2, HardHat, AlertTriangle, Lock } from 'lucide-react';
 import { useAppContext } from '@/contexts/AppContext';
 import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import ReportDialog from '@/components/ReportDialog';
@@ -36,6 +36,8 @@ const AdminProductionChart = () => {
     
     // Correction: If the selectedDayId is no longer valid, reset to the first available day.
     if (allDays.length > 0 && selectedDayId && !allDays.includes(selectedDayId)) {
+        setSelectedDayId(allDays[0]);
+    } else if (allDays.length > 0 && !selectedDayId) {
         setSelectedDayId(allDays[0]);
     }
     
@@ -102,11 +104,19 @@ const AdminProductionChart = () => {
 
 const ProfileManager = () => {
     const { state, dispatch } = useAppContext();
-    const { profiles } = state;
+    const { profiles, plan } = state;
     const [newProfileName, setNewProfileName] = useState('');
     const { toast } = useToast();
 
+    const planLimits = { basic: 3, pro: 6, premium: 10 };
+    const maxProfiles = planLimits[plan];
+    const canAddProfile = profiles.length < maxProfiles;
+
     const handleAddProfile = () => {
+        if (!canAddProfile) {
+            toast({ title: 'Limite de perfis atingido', description: `Seu plano ${plan} permite até ${maxProfiles} perfis.`, variant: 'destructive' });
+            return;
+        }
         if (newProfileName.trim() && !profiles.find(p => p.name.toLowerCase() === newProfileName.trim().toLowerCase())) {
             dispatch({ type: 'ADD_PROFILE', payload: newProfileName.trim() });
             toast({ title: `Perfil "${newProfileName.trim()}" criado!` });
@@ -146,9 +156,16 @@ const ProfileManager = () => {
                   value={newProfileName}
                   onChange={e => setNewProfileName(e.target.value)}
                   onKeyDown={e => e.key === 'Enter' && handleAddProfile()}
+                  disabled={!canAddProfile}
                 />
-                <Button onClick={handleAddProfile}><Plus className="mr-2 h-4 w-4"/>Adicionar</Button>
+                <Button onClick={handleAddProfile} disabled={!canAddProfile}>
+                  { !canAddProfile ? <Lock className="mr-2 h-4 w-4"/> : <Plus className="mr-2 h-4 w-4"/>}
+                  Adicionar
+                </Button>
               </div>
+              <p className="text-xs text-muted-foreground">
+                Perfis: {profiles.length} / {maxProfiles}
+              </p>
 
             <div className="space-y-2">
                 {profiles.map(profile => (
@@ -252,6 +269,8 @@ export default function AdminPage() {
   const [reportData, setReportData] = useState<GenerateConsolidatedReportOutput | null>(null);
   const [isReportOpen, setIsReportOpen] = useState(false);
 
+  const hasAI = state.plan === 'pro' || state.plan === 'premium';
+
   const handleGenerateConsolidatedReport = async () => {
     const allDaysSet = new Set<string>();
     state.profiles.forEach(p => p.days.forEach(d => allDaysSet.add(d.id)));
@@ -339,10 +358,11 @@ export default function AdminPage() {
                 <CardTitle className="flex items-center gap-2"><ShieldCheck /> Relatórios Consolidados</CardTitle>
                 <CardDescription>
                     Gere análises detalhadas combinando os dados de todos os perfis para o dia mais recente.
+                     {!hasAI && <span className="text-amber-500 block mt-1"> (Funcionalidade Pro/Premium)</span>}
                 </CardDescription>
-            </CardHeader>
+            </Header>
            <CardContent>
-            <Button onClick={handleGenerateConsolidatedReport} disabled={isGenerating}>
+            <Button onClick={handleGenerateConsolidatedReport} disabled={isGenerating || !hasAI}>
                 {isGenerating ? <Loader2 className="mr-2 animate-spin"/> : <BookCheck className="mr-2" />}
                 Gerar Relatório Automático
             </Button>

@@ -1,5 +1,7 @@
 // src/lib/types.ts
 
+export type Plan = 'basic' | 'pro' | 'premium';
+
 export interface Announcement {
   id: string;
   authorProfileId: string;
@@ -76,6 +78,7 @@ export interface MasterDataItem {
 }
 
 export interface AppState {
+  plan: Plan;
   profiles: Profile[];
   activeProfileId: string | null;
   currentProfileForLogin: string | null; // Used to know which profile is trying to log in

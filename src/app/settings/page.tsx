@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { useAppContext } from '@/contexts/AppContext';
-import { Moon, Sun, Palette, HelpCircle, User, Download, Upload, FileText } from 'lucide-react';
+import { Moon, Sun, Palette, HelpCircle, User, Download, Upload, FileText, Crown } from 'lucide-react';
 import {
   Accordion,
   AccordionContent,
@@ -16,6 +16,7 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { Label } from '@/components/ui/label';
+import Link from 'next/link';
 
 export default function SettingsPage() {
   const { toast } = useToast();
@@ -221,6 +222,23 @@ export default function SettingsPage() {
                       accept=".json"
                     />
                 </div>
+              </AccordionContent>
+            </AccordionItem>
+             <AccordionItem value="item-4">
+              <AccordionTrigger className="px-6">
+                 <div className="flex items-center gap-3">
+                    <Crown /> Meu Plano
+                </div>
+              </AccordionTrigger>
+              <AccordionContent className="pt-4 px-6 space-y-4">
+                  <div className="p-4 bg-muted rounded-lg">
+                      <p>Você está no plano <span className="font-bold capitalize text-primary">{state.plan}</span>.</p>
+                  </div>
+                  <Link href="/subscribe">
+                    <Button>
+                       Ver outros planos
+                    </Button>
+                  </Link>
               </AccordionContent>
             </AccordionItem>
           </Accordion>

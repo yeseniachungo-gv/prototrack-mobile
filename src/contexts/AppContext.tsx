@@ -3,12 +3,13 @@
 
 import React, { createContext, useReducer, useContext, useEffect, useRef } from 'react';
 import { produce } from 'immer';
-import type { AppState, Day, FunctionEntry, Profile, Announcement, StopwatchState, MasterDataItem, StopwatchHistoryEntry } from '@/lib/types';
+import type { AppState, Day, FunctionEntry, Profile, Announcement, StopwatchState, MasterDataItem, StopwatchHistoryEntry, Plan } from '@/lib/types';
 import { v4 as uuidv4 } from 'uuid';
 
 type Action =
   | { type: 'TOGGLE_THEME' }
   | { type: 'SET_STATE', payload: AppState }
+  | { type: 'SET_PLAN', payload: Plan }
   | { type: 'ADD_DAY' }
   | { type: 'SET_ACTIVE_DAY', payload: string }
   | { type: 'ADD_FUNCTION', payload: { dayId: string; functionName: string } }
@@ -70,6 +71,7 @@ const createDefaultProfile = (name: string): Profile => {
 
 function getInitialState(): AppState {
   return {
+    plan: 'premium', // Default to premium for existing users
     profiles: [createDefaultProfile('Perfil Padrão')],
     activeProfileId: null, 
     currentProfileForLogin: null,
@@ -143,6 +145,11 @@ const appReducer = produce((draft: AppState, action: Action) => {
 
         case 'TOGGLE_THEME': {
             draft.theme = draft.theme === 'dark' ? 'light' : 'dark';
+            break;
+        }
+
+        case 'SET_PLAN': {
+            draft.plan = action.payload;
             break;
         }
 
@@ -434,6 +441,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         const savedState = JSON.parse(savedStateString);
         
         // --- Migration & Validation ---
+        if (!savedState.plan) savedState.plan = 'premium';
         if (!savedState.profiles || !Array.isArray(savedState.profiles)) {
             const defaultProfile = createDefaultProfile('Perfil Restaurado');
             defaultProfile.days = (savedState as any).days || [];

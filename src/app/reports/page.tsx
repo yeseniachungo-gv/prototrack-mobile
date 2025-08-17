@@ -64,13 +64,15 @@ const ProductionTrendChart = ({ days }: { days: Day[] }) => {
 
 // Main Reports Page Component
 export default function ReportsPage() {
-  const { activeProfile } = useAppContext();
+  const { state, activeProfile } = useAppContext();
   const { toast } = useToast();
   
   const [isGenerating, setIsGenerating] = useState(false);
   const [reportData, setReportData] = useState<GenerateDailyReportOutput | null>(null);
   const [isReportOpen, setIsReportOpen] = useState(false);
   const [selectedPeriod, setSelectedPeriod] = useState<Period>('7d');
+
+  const hasAI = state.plan === 'pro' || state.plan === 'premium';
 
   const filteredDays = useMemo(() => {
     if (!activeProfile) return [];
@@ -149,10 +151,11 @@ export default function ReportsPage() {
           <CardTitle>Análises Automáticas</CardTitle>
           <CardDescription>
             Gere resumos e análises a partir dos dados de produção do dia selecionado no dashboard.
+            {!hasAI && <span className="text-amber-500 block mt-1"> (Funcionalidade Pro/Premium)</span>}
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col sm:flex-row gap-4">
-          <Button onClick={handleGenerateDailyReport} disabled={!activeProfile?.activeDayId || isGenerating}>
+          <Button onClick={handleGenerateDailyReport} disabled={!activeProfile?.activeDayId || isGenerating || !hasAI}>
             {isGenerating ? <Loader2 className="mr-2 animate-spin"/> : <BookCheck className="mr-2" />}
             Gerar Resumo do Dia
           </Button>
