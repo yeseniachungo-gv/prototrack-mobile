@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { useAppContext } from '@/contexts/AppContext';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, BookCheck, CalendarRange } from 'lucide-react';
+import { Loader2, BookCheck, CalendarRange, WifiOff } from 'lucide-react';
 import type { Day } from '@/lib/types';
 import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { generateDailyReport, GenerateDailyReportOutput } from '@/ai/flows/generate-daily-report';
@@ -71,6 +71,19 @@ export default function ReportsPage() {
   const [reportData, setReportData] = useState<GenerateDailyReportOutput | null>(null);
   const [isReportOpen, setIsReportOpen] = useState(false);
   const [selectedPeriod, setSelectedPeriod] = useState<Period>('7d');
+  const [isOnline, setIsOnline] = useState(true);
+
+  React.useEffect(() => {
+    setIsOnline(navigator.onLine);
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
 
   const hasAI = state.plan === 'pro' || state.plan === 'premium';
 
@@ -98,6 +111,10 @@ export default function ReportsPage() {
 
   // --- Action Handlers ---
   const handleGenerateDailyReport = async () => {
+    if (!isOnline) {
+      toast({ title: 'Funcionalidade offline', description: 'A geração de relatórios por IA requer conexão com a internet.', variant: 'destructive'});
+      return;
+    }
     const activeDay = activeProfile?.days.find(d => d.id === activeProfile.activeDayId);
     if (!activeDay || !activeProfile) {
         toast({ title: 'Nenhum dia ativo selecionado', description: "Vá para o dashboard e selecione um dia.", variant: 'destructive' });
@@ -152,11 +169,12 @@ export default function ReportsPage() {
           <CardDescription>
             Gere resumos e análises a partir dos dados de produção do dia selecionado no dashboard.
             {!hasAI && <span className="text-amber-500 block mt-1"> (Funcionalidade Pro/Premium)</span>}
+            {!isOnline && <span className="text-amber-500 block mt-1"> (Requer Internet)</span>}
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col sm:flex-row gap-4">
-          <Button onClick={handleGenerateDailyReport} disabled={!activeProfile?.activeDayId || isGenerating || !hasAI}>
-            {isGenerating ? <Loader2 className="mr-2 animate-spin"/> : <BookCheck className="mr-2" />}
+          <Button onClick={handleGenerateDailyReport} disabled={!activeProfile?.activeDayId || isGenerating || !hasAI || !isOnline}>
+            {isGenerating ? <Loader2 className="mr-2 animate-spin"/> : !isOnline ? <WifiOff className="mr-2"/> : <BookCheck className="mr-2" />}
             Gerar Resumo do Dia
           </Button>
         </CardContent>
@@ -186,7 +204,7 @@ export default function ReportsPage() {
                     </Select>
                  </div>
             </div>
-        </CardHeader>
+        </Header>
         <CardContent>
           {filteredDays.length > 0 ? (
             <ProductionTrendChart days={filteredDays} />

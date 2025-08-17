@@ -7,7 +7,7 @@ import Header from '@/components/Header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Plus, ChevronLeft, ChevronRight, Sparkles, Target, Edit } from 'lucide-react';
+import { Plus, ChevronLeft, ChevronRight, Sparkles, Target, Edit, WifiOff } from 'lucide-react';
 import { useAppContext } from '@/contexts/AppContext';
 import FunctionCard from '@/components/FunctionCard';
 import FunctionSheet from '@/components/FunctionSheet';
@@ -85,6 +85,19 @@ const AddFunctionForm = ({ dayId }: { dayId: string }) => {
   const [isLoading, setIsLoading] = useState(false);
   const { dispatch, activeDay } = useAppContext();
   const { toast } = useToast();
+  const [isOnline, setIsOnline] = useState(true);
+
+  React.useEffect(() => {
+    setIsOnline(navigator.onLine);
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
 
   const handleAddFunction = (e: React.FormEvent) => {
     e.preventDefault();
@@ -95,6 +108,10 @@ const AddFunctionForm = ({ dayId }: { dayId: string }) => {
   };
 
   const handleAISuggest = async () => {
+    if (!isOnline) {
+      toast({ title: 'Funcionalidade offline', description: 'A sugestão por IA requer conexão com a internet.', variant: 'destructive'});
+      return;
+    }
     if (!functionName.trim() || !activeDay) {
       toast({
         title: "Entrada necessária",
@@ -147,8 +164,8 @@ const AddFunctionForm = ({ dayId }: { dayId: string }) => {
         onChange={(e) => setFunctionName(e.target.value)}
         className="flex-1"
       />
-      <Button type="button" variant="outline" size="icon" onClick={handleAISuggest} disabled={isLoading} title="Obter sugestão automática">
-        <Sparkles className="h-4 w-4" />
+      <Button type="button" variant="outline" size="icon" onClick={handleAISuggest} disabled={isLoading || !isOnline} title="Obter sugestão automática">
+        {!isOnline ? <WifiOff className="h-4 w-4" /> : <Sparkles className="h-4 w-4" />}
       </Button>
       <Button type="submit">Adicionar</Button>
     </form>
@@ -242,7 +259,7 @@ const DailyGoalCard = () => {
           </div>
         ) : (
           <p className="text-muted-foreground text-center py-4">
-            {activeDay ? 'Defina uma meta e selecione uma função para começar.' : 'Selecione um dia para definir uma meta.'}
+            {activeDay ? 'Defina uma meta e selecione uma função para começar.' : 'Selecione ou crie um dia para definir uma meta.'}
           </p>
         )}
       </CardContent>

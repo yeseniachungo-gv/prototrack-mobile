@@ -40,7 +40,7 @@ type Action =
   | { type: 'ADD_MASTER_DATA'; payload: { type: 'workers' | 'reasons'; name: string } }
   | { type: 'DELETE_MASTER_DATA'; payload: { type: 'workers' | 'reasons'; id: string } };
 
-const APP_STATE_KEY = 'giratempo-state-v2';
+const APP_STATE_KEY = 'giratempo-state-v3-pwa';
 
 const createDefaultProfile = (name: string): Profile => {
     const today = new Date().toISOString().split('T')[0];

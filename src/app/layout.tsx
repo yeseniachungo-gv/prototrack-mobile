@@ -1,11 +1,34 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import AppWrapper from "@/components/AppWrapper";
 
+const APP_NAME = "GiraTempo";
+const APP_DEFAULT_TITLE = "GiraTempo";
+const APP_TITLE_TEMPLATE = "%s - GiraTempo";
+const APP_DESCRIPTION = "Controle de Produção Inteligente";
+
 export const metadata: Metadata = {
-  title: "GiraTempo",
-  description: "Controle de Produção Inteligente",
+  applicationName: APP_NAME,
+  title: {
+    default: APP_DEFAULT_TITLE,
+    template: APP_TITLE_TEMPLATE,
+  },
+  description: APP_DESCRIPTION,
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: APP_DEFAULT_TITLE,
+  },
+  formatDetection: {
+    telephone: false,
+  },
 };
+
+export const viewport: Viewport = {
+  themeColor: "#FFFFFF",
+};
+
 
 export default function RootLayout({
   children,

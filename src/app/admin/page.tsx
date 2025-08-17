@@ -4,7 +4,7 @@
 import React, { useState, useMemo } from 'react';
 import Header from '@/components/Header';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { ShieldCheck, Users, BarChart2, Loader2, BookCheck, Plus, Trash2, HardHat, AlertTriangle, Lock } from 'lucide-react';
+import { ShieldCheck, Users, BarChart2, Loader2, BookCheck, Plus, Trash2, HardHat, AlertTriangle, Lock, WifiOff } from 'lucide-react';
 import { useAppContext } from '@/contexts/AppContext';
 import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import ReportDialog from '@/components/ReportDialog';
@@ -268,10 +268,27 @@ export default function AdminPage() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [reportData, setReportData] = useState<GenerateConsolidatedReportOutput | null>(null);
   const [isReportOpen, setIsReportOpen] = useState(false);
+  const [isOnline, setIsOnline] = useState(true);
+
+  React.useEffect(() => {
+    setIsOnline(navigator.onLine);
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
 
   const hasAI = state.plan === 'pro' || state.plan === 'premium';
 
   const handleGenerateConsolidatedReport = async () => {
+    if (!isOnline) {
+      toast({ title: 'Funcionalidade offline', description: 'A geração de relatórios por IA requer conexão com a internet.', variant: 'destructive'});
+      return;
+    }
     const allDaysSet = new Set<string>();
     state.profiles.forEach(p => p.days.forEach(d => allDaysSet.add(d.id)));
     const latestDay = Array.from(allDaysSet).sort((a,b) => new Date(b).getTime() - new Date(a).getTime())[0];
@@ -359,11 +376,12 @@ export default function AdminPage() {
                 <CardDescription>
                     Gere análises detalhadas combinando os dados de todos os perfis para o dia mais recente.
                      {!hasAI && <span className="text-amber-500 block mt-1"> (Funcionalidade Pro/Premium)</span>}
+                     {!isOnline && <span className="text-amber-500 block mt-1"> (Requer Internet)</span>}
                 </CardDescription>
             </Header>
            <CardContent>
-            <Button onClick={handleGenerateConsolidatedReport} disabled={isGenerating || !hasAI}>
-                {isGenerating ? <Loader2 className="mr-2 animate-spin"/> : <BookCheck className="mr-2" />}
+            <Button onClick={handleGenerateConsolidatedReport} disabled={isGenerating || !hasAI || !isOnline}>
+                {isGenerating ? <Loader2 className="mr-2 animate-spin"/> : !isOnline ? <WifiOff className="mr-2"/> : <BookCheck className="mr-2" />}
                 Gerar Relatório Automático
             </Button>
           </CardContent>
