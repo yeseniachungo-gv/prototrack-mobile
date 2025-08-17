@@ -29,8 +29,23 @@ const APP_STATE_KEY = 'prototrack-state-v2';
 
 function getInitialState(): AppState {
   const today = new Date().toISOString().split('T')[0];
+  const defaultHours = Array.from({ length: 10 }, (_, i) => `${String(i + 8).padStart(2, '0')}:00`);
+  const defaultWorkers = Array.from({ length: 3 }, (_, i) => `Trabalhador ${i + 1}`);
+
   return {
-    days: [{ id: today, functions: [] }],
+    days: [{ 
+      id: today, 
+      functions: [
+        {
+          id: uuidv4(),
+          name: "Função Exemplo",
+          workers: defaultWorkers,
+          hours: defaultHours,
+          pieces: {},
+          observations: {}
+        }
+      ] 
+    }],
     activeDayId: today,
     theme: 'dark',
     stopwatch: {
@@ -57,28 +72,33 @@ const appReducer = (state: AppState, action: Action): AppState => {
         draft.theme = draft.theme === 'dark' ? 'light' : 'dark';
         return;
       case 'SET_STATE':
-        return action.payload;
+        // Ao restaurar, mantém o histórico do cronômetro local, se houver
+        const localStopwatchHistory = draft.stopwatch.history;
+        const restoredState = action.payload;
+        restoredState.stopwatch = getInitialState().stopwatch;
+        restoredState.stopwatch.history = localStopwatchHistory;
+        return restoredState;
       case 'SET_ACTIVE_DAY':
         if (draft.days.find(d => d.id === action.payload)) {
           draft.activeDayId = action.payload;
         }
         return;
       case 'ADD_DAY': {
-        const today = new Date();
         const lastDayInState = draft.days.reduce((latest, day) => new Date(day.id) > new Date(latest.id) ? day : latest, draft.days[0]);
         const nextDay = new Date(lastDayInState.id + 'T00:00:00');
         nextDay.setDate(nextDay.getDate() + 1);
         const newDayId = nextDay.toISOString().split('T')[0];
         
         if (!draft.days.find(d => d.id === newDayId)) {
-          const functionsTemplate = JSON.parse(JSON.stringify(lastDayInState.functions));
-          functionsTemplate.forEach((func: FunctionEntry) => {
+          const functionsTemplate: FunctionEntry[] = JSON.parse(JSON.stringify(lastDayInState.functions));
+          functionsTemplate.forEach((func) => {
             func.pieces = {};
             func.observations = {};
           });
           
           const newDay: Day = { id: newDayId, functions: functionsTemplate };
           draft.days.push(newDay);
+          draft.days.sort((a, b) => new Date(a.id).getTime() - new Date(b.id).getTime());
           draft.activeDayId = newDayId;
         }
         return;
@@ -124,7 +144,7 @@ const appReducer = (state: AppState, action: Action): AppState => {
         
         switch (action.type) {
             case 'ADD_FUNCTION':
-                if (!day.functions.find(f => f.name === payload.functionName)) {
+                if (!day.functions.find(f => f.name.toLowerCase() === payload.functionName.toLowerCase())) {
                     const defaultHours = Array.from({ length: 10 }, (_, i) => `${String(i + 8).padStart(2, '0')}:00`);
                     const defaultWorkers = Array.from({ length: 3 }, (_, i) => `Trabalhador ${i + 1}`);
                     day.functions.push({
@@ -144,7 +164,7 @@ const appReducer = (state: AppState, action: Action): AppState => {
                 if (func) func.name = payload.newName;
                 break;
             case 'ADD_WORKER_TO_FUNCTION':
-                if (func && !func.workers.includes(payload.workerName)) {
+                if (func && !func.workers.find(w => w.toLowerCase() === payload.workerName.toLowerCase())) {
                    if (payload.workerName.trim()){
                      func.workers.push(payload.workerName.trim());
                    }
@@ -157,18 +177,21 @@ const appReducer = (state: AppState, action: Action): AppState => {
                 break;
             case 'ADD_HOUR_TO_FUNCTION':
                 if (func) {
-                    const lastHourStr = func.hours[func.hours.length - 1] || "07:00";
+                    const lastHourStr = func.hours.length > 0 ? func.hours[func.hours.length - 1] : "07:00";
                     const lastHour = parseInt(lastHourStr.split(':')[0]);
                     const newHour = (lastHour + 1) % 24;
                     const newHourStr = `${String(newHour).padStart(2, '0')}:00`;
                     if (!func.hours.includes(newHourStr)) {
                        func.hours.push(newHourStr);
+                       func.hours.sort();
                     }
                 }
                 break;
             case 'DELETE_HOUR_FROM_FUNCTION':
                 if (func) {
+                    // Remove a hora
                     func.hours = func.hours.filter(h => h !== payload.hour);
+                    // Remove dados associados a essa hora
                     Object.keys(func.pieces).forEach(key => {
                         if (key.endsWith(`_${payload.hour}`)) delete func.pieces[key];
                     });
@@ -203,33 +226,41 @@ const appReducer = (state: AppState, action: Action): AppState => {
 
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [state, dispatch] = useReducer(appReducer, getInitialState());
-  const [isInitialized, setIsInitialized] = React.useState(false);
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
-
-  // Carregar estado do localStorage na inicialização
-  useEffect(() => {
+  const [state, dispatch] = useReducer(appReducer, undefined, () => {
+    if (typeof window === 'undefined') {
+      return getInitialState();
+    }
     try {
       const savedStateString = localStorage.getItem(APP_STATE_KEY);
       if (savedStateString) {
         const savedState = JSON.parse(savedStateString);
-        // Reseta o estado do cronômetro ao carregar, ele não persiste
-        savedState.stopwatch = getInitialState().stopwatch;
-        dispatch({ type: 'SET_STATE', payload: savedState });
+        savedState.stopwatch = getInitialState().stopwatch; // Cronômetro não persiste
+        return savedState;
       }
     } catch (e) {
       console.error("Falha ao carregar o estado, usando o estado inicial.", e);
     }
+    return getInitialState();
+  });
+  
+  const [isInitialized, setIsInitialized] = React.useState(false);
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Efeito para carregar o estado apenas no cliente
+  useEffect(() => {
     setIsInitialized(true);
   }, []);
+
 
   // Salvar estado no localStorage sempre que mudar
   useEffect(() => {
     if (isInitialized) {
       try {
         const stateToSave = { ...state };
-        // Não salva o estado em tempo real do cronômetro
-        delete (stateToSave as any).stopwatch; 
+        // Não salva o estado em tempo real do cronômetro, apenas o histórico
+        const stopwatchStateToSave = { history: state.stopwatch.history };
+        (stateToSave as any).stopwatch = stopwatchStateToSave;
+        
         localStorage.setItem(APP_STATE_KEY, JSON.stringify(stateToSave));
       } catch (e) {
         console.error("Falha ao salvar o estado.", e)
@@ -239,10 +270,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   
   // Efeito para o tema
   useEffect(() => {
-    const isDark = state.theme === 'dark';
-    document.documentElement.classList.toggle('dark', isDark);
-    document.documentElement.classList.toggle('light', !isDark);
-  }, [state.theme]);
+    if (isInitialized) {
+      const isDark = state.theme === 'dark';
+      document.documentElement.classList.toggle('dark', isDark);
+      document.documentElement.classList.toggle('light', !isDark);
+    }
+  }, [state.theme, isInitialized]);
   
   // Efeito para o timer do cronômetro
   useEffect(() => {
@@ -267,7 +300,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const activeDay = state.days.find(d => d.id === state.activeDayId) || null;
 
   if (!isInitialized) {
-    return null; 
+    return null; // ou um componente de loading
   }
 
   return (
