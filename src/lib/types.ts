@@ -1,6 +1,7 @@
 export interface Observation {
   reason: string;
   detail: string;
+  minutesStopped?: number;
 }
 
 export interface FunctionEntry {
@@ -25,7 +26,8 @@ export interface StopwatchHistoryEntry {
 }
 
 export interface StopwatchState {
-    time: number;
+    time: number; // Represents the current time on the stopwatch (countdown)
+    initialTime: number; // The starting time for the countdown
     pieces: number;
     isRunning: boolean;
     history: StopwatchHistoryEntry[];
@@ -37,3 +39,5 @@ export interface AppState {
   theme: 'light' | 'dark';
   stopwatch: StopwatchState;
 }
+
+    

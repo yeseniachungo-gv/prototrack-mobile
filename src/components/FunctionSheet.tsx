@@ -5,7 +5,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
-import { MessageSquare, Plus, Trash2, GripVertical } from 'lucide-react';
+import { MessageSquare, Plus, Trash2 } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -29,17 +29,20 @@ const ObservationPopover: React.FC<ObservationPopoverProps> = ({ dayId, function
   const motivos = ['Troca de função', 'Treinamento', 'Manutenção de máquina', 'Pausa prolongada', 'Outro'];
   const [reason, setReason] = useState(observation?.reason || '');
   const [detail, setDetail] = useState(observation?.detail || '');
+  const [minutesStopped, setMinutesStopped] = useState(observation?.minutesStopped || 0);
   const [isOpen, setIsOpen] = useState(false);
   const { toast } = useToast();
 
   const handleSave = () => {
     dispatch({
       type: 'UPDATE_OBSERVATION',
-      payload: { dayId, functionId, worker, hour, reason, detail }
+      payload: { dayId, functionId, worker, hour, reason, detail, minutesStopped: reason === 'Manutenção de máquina' || reason === 'Pausa prolongada' ? minutesStopped : 0 }
     });
     toast({ title: "Observação salva!" });
     setIsOpen(false);
   };
+  
+  const showMinutesInput = reason === 'Manutenção de máquina' || reason === 'Pausa prolongada';
   
   return (
     <Popover open={isOpen} onOpenChange={setIsOpen}>
@@ -67,6 +70,18 @@ const ObservationPopover: React.FC<ObservationPopoverProps> = ({ dayId, function
               </SelectContent>
             </Select>
           </div>
+          {showMinutesInput && (
+            <div className="grid gap-2">
+              <Label htmlFor={`minutos-${worker}-${hour}`}>Minutos de Parada</Label>
+              <Input
+                id={`minutos-${worker}-${hour}`}
+                type="number"
+                placeholder="0"
+                value={minutesStopped}
+                onChange={(e) => setMinutesStopped(parseInt(e.target.value) || 0)}
+              />
+            </div>
+          )}
           <div className="grid gap-2">
             <Label htmlFor={`detalhe-${worker}-${hour}`}>Detalhe</Label>
             <Textarea
@@ -268,3 +283,5 @@ export default function FunctionSheet({ isOpen, onClose, func, dayId }: Function
     </Dialog>
   );
 }
+
+    

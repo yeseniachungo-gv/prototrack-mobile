@@ -5,8 +5,9 @@ import Header from '@/components/Header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useAppContext } from '@/contexts/AppContext';
-import { Play, Pause, Square, Plus, Minus, RotateCcw } from 'lucide-react';
+import { Play, Pause, RotateCcw } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { cn } from '@/lib/utils';
 
 // Função para formatar o tempo de segundos para MM:SS
 const formatTime = (timeInSeconds: number) => {
@@ -14,6 +15,15 @@ const formatTime = (timeInSeconds: number) => {
   const seconds = (timeInSeconds % 60).toString().padStart(2, '0');
   return `${minutes}:${seconds}`;
 };
+
+const timePresets = [
+    { label: "15s", seconds: 15 },
+    { label: "30s", seconds: 30 },
+    { label: "1m", seconds: 60 },
+    { label: "2m", seconds: 120 },
+    { label: "5m", seconds: 300 },
+    { label: "10m", seconds: 600 },
+]
 
 export default function StopwatchPage() {
   const { state, dispatch } = useAppContext();
@@ -27,42 +37,58 @@ export default function StopwatchPage() {
     dispatch({ type: 'RESET_TIMER' });
   };
   
-  const handlePieceChange = (amount: number) => {
+  const handlePieceClick = () => {
     if (stopwatch.isRunning) {
-        dispatch({ type: 'ADD_PIECE', payload: amount });
+        dispatch({ type: 'ADD_PIECE', payload: 1 });
     }
   };
 
-  const pph = stopwatch.time > 0 ? (stopwatch.pieces / stopwatch.time) * 3600 : 0;
+  const handleSetTime = (seconds: number) => {
+    dispatch({ type: 'SET_TIMER', payload: seconds });
+  }
+
+  const pph = stopwatch.initialTime > 0 ? (stopwatch.pieces / stopwatch.initialTime) * 3600 : 0;
+  const isFinished = stopwatch.time === 0 && !stopwatch.isRunning && stopwatch.history.length > 0;
 
   return (
     <div className="p-4 md:p-6 space-y-4">
-      <Header title="Cronômetro" />
+      <Header title="Cronômetro Regressivo" />
       
       <Card className="text-center">
         <CardContent className="p-6">
+           <div className="flex justify-center gap-2 mb-4 flex-wrap">
+              {timePresets.map(preset => (
+                <Button 
+                    key={preset.seconds}
+                    variant={stopwatch.initialTime === preset.seconds ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => handleSetTime(preset.seconds)}
+                    disabled={stopwatch.isRunning}
+                >
+                    {preset.label}
+                </Button>
+              ))}
+           </div>
+          
           <div 
-             className="text-8xl font-bold font-mono text-primary mb-4"
-             onClick={() => handlePieceChange(1)}
+             className={cn(
+                "text-8xl font-bold font-mono text-primary mb-4 transition-colors duration-300",
+                isFinished && "text-destructive"
+             )}
+             onClick={handlePieceClick}
            >
             {formatTime(stopwatch.time)}
           </div>
           
           <div className="flex items-center justify-center gap-4 mb-6">
-             <Button size="icon" variant="outline" onClick={() => handlePieceChange(-1)} disabled={!stopwatch.isRunning || stopwatch.pieces <= 0}>
-                <Minus/>
-             </Button>
              <div className="text-4xl font-bold w-24 text-center">{stopwatch.pieces}</div>
-             <Button size="icon" variant="outline" onClick={() => handlePieceChange(1)} disabled={!stopwatch.isRunning}>
-                <Plus/>
-             </Button>
           </div>
           
           <div className="flex justify-center gap-2">
-            <Button size="lg" onClick={handleToggleTimer} className="w-40">
+            <Button size="lg" onClick={handleToggleTimer} className="w-40" disabled={stopwatch.time === 0}>
               {stopwatch.isRunning ? <><Pause className="mr-2"/> Parar</> : <><Play className="mr-2"/> Iniciar</>}
             </Button>
-            <Button size="lg" variant="destructive" onClick={handleResetTimer} disabled={stopwatch.time === 0}>
+            <Button size="lg" variant="destructive" onClick={handleResetTimer} disabled={stopwatch.time === stopwatch.initialTime && stopwatch.pieces === 0}>
                 <RotateCcw className="mr-2"/> Zerar
             </Button>
           </div>
@@ -71,16 +97,16 @@ export default function StopwatchPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Desempenho</CardTitle>
+          <CardTitle>Desempenho da Sessão</CardTitle>
         </CardHeader>
         <CardContent className="grid grid-cols-2 gap-4 text-center">
             <div className="p-4 bg-muted rounded-lg">
-                <div className="text-sm text-muted-foreground">Peças/Hora</div>
+                <div className="text-sm text-muted-foreground">Peças/Hora (Proj.)</div>
                 <div className="text-2xl font-bold">{pph.toFixed(0)}</div>
             </div>
              <div className="p-4 bg-muted rounded-lg">
-                <div className="text-sm text-muted-foreground">Tempo Médio</div>
-                <div className="text-2xl font-bold">{stopwatch.pieces > 0 ? (stopwatch.time / stopwatch.pieces).toFixed(2) : '0.00'}s</div>
+                <div className="text-sm text-muted-foreground">Tempo Total</div>
+                <div className="text-2xl font-bold">{formatTime(stopwatch.initialTime)}</div>
             </div>
         </CardContent>
       </Card>
@@ -117,3 +143,5 @@ export default function StopwatchPage() {
     </div>
   );
 }
+
+    
