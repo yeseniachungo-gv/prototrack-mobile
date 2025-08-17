@@ -18,11 +18,12 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 
 
 const ProfileManager = () => {
   const { state, dispatch, activeProfile } = useAppContext();
-  const { profiles, activeProfileId } = state;
+  const { profiles } = state;
   const [newProfileName, setNewProfileName] = useState('');
   
   const [editingName, setEditingName] = useState('');
@@ -54,7 +55,7 @@ const ProfileManager = () => {
       dispatch({ type: 'DELETE_PROFILE', payload: profileId });
       toast({ title: `Perfil "${profileName}" excluído.`, variant: 'destructive' });
       // Se o perfil excluído era o ativo, volta para a tela de seleção
-      if(activeProfileId === profileId) {
+      if(state.activeProfileId === profileId) {
         router.push('/');
       }
     } else {
@@ -82,71 +83,81 @@ const ProfileManager = () => {
 
   if (!activeProfile) {
     return (
-      <div className="text-center text-muted-foreground p-4">
-        <p>Para gerenciar um perfil, primeiro selecione um na <a href="/" className="text-primary underline">tela de seleção</a> ou crie um novo abaixo.</p>
-        <div className="flex items-center gap-2 mt-4">
-          <Input 
-            placeholder="Nome do novo perfil" 
-            value={newProfileName}
-            onChange={e => setNewProfileName(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && handleAddProfile()}
-          />
-          <Button onClick={handleAddProfile}><Plus className="mr-2 h-4 w-4"/>Adicionar</Button>
-        </div>
+      <div className="text-center text-muted-foreground p-4 space-y-4">
+        <p>Para gerenciar os detalhes de um perfil, primeiro <Link href="/" className="text-primary underline">selecione um</Link>.</p>
+        <Card className="text-left p-4">
+          <Label className="font-bold">Criar Novo Perfil</Label>
+          <div className="flex items-center gap-2 mt-2">
+            <Input 
+              placeholder="Nome do novo perfil" 
+              value={newProfileName}
+              onChange={e => setNewProfileName(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && handleAddProfile()}
+            />
+            <Button onClick={handleAddProfile}><Plus className="mr-2 h-4 w-4"/>Adicionar</Button>
+          </div>
+        </Card>
       </div>
     );
   }
 
   return (
-    <form onSubmit={handleUpdateProfile} className="space-y-4">
-      <div className="space-y-2">
-        <Label htmlFor="profileName">Nome do Perfil</Label>
-        <Input 
-          id="profileName"
-          placeholder="Nome do perfil" 
-          value={editingName}
-          onChange={e => setEditingName(e.target.value)}
-        />
-      </div>
-       <div className="space-y-2">
-        <Label htmlFor="profilePin">PIN de Acesso (4 dígitos)</Label>
-        <Input 
-          id="profilePin"
-          placeholder="1234" 
-          value={editingPin}
-          onChange={e => setEditingPin(e.target.value)}
-          maxLength={4}
-        />
-      </div>
+    <div className="space-y-6">
+      <form onSubmit={handleUpdateProfile} className="space-y-4">
+        <p className="text-sm text-muted-foreground">
+            Editando o perfil: <span className="font-bold text-primary">{activeProfile.name}</span>
+        </p>
+        <div className="space-y-2">
+          <Label htmlFor="profileName">Nome do Perfil</Label>
+          <Input 
+            id="profileName"
+            placeholder="Nome do perfil" 
+            value={editingName}
+            onChange={e => setEditingName(e.target.value)}
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="profilePin">PIN de Acesso (4 dígitos)</Label>
+          <Input 
+            id="profilePin"
+            placeholder="1234" 
+            value={editingPin}
+            onChange={e => setEditingPin(e.target.value)}
+            maxLength={4}
+            type="password"
+            inputMode="numeric"
+          />
+        </div>
 
-       <div className="flex justify-between items-center">
-        <Button type="submit">Salvar Alterações</Button>
-        <AlertDialog>
-          <AlertDialogTrigger asChild>
-            <Button type="button" variant="destructive" disabled={profiles.length <= 1}>
-              <Trash2 className="mr-2 h-4 w-4"/>Excluir Perfil
-            </Button>
-          </AlertDialogTrigger>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Excluir Perfil?</AlertDialogTitle>
-              <AlertDialogDescription>
-                Atenção: Esta ação não pode ser desfeita. Todos os dados do perfil "{activeProfile.name}" (dias, funções, metas) serão permanentemente excluídos.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Cancelar</AlertDialogCancel>
-              <AlertDialogAction onClick={() => handleDeleteProfile(activeProfile.id, activeProfile.name)}>
-                Confirmar Exclusão
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
-      </div>
+        <div className="flex justify-between items-center">
+          <Button type="submit">Salvar Alterações</Button>
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button type="button" variant="destructive" disabled={profiles.length <= 1}>
+                <Trash2 className="mr-2 h-4 w-4"/>Excluir Perfil
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Excluir Perfil?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Atenção: Esta ação não pode ser desfeita. Todos os dados do perfil "{activeProfile.name}" (dias, funções, metas) serão permanentemente excluídos.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                <AlertDialogAction onClick={() => handleDeleteProfile(activeProfile.id, activeProfile.name)}>
+                  Confirmar Exclusão
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </div>
+      </form>
 
-      <div className="space-y-2 pt-4">
-         <Label>Criar Novo Perfil</Label>
-        <div className="flex items-center gap-2">
+      <Card className="p-4">
+         <Label className="font-bold">Criar Novo Perfil</Label>
+        <div className="flex items-center gap-2 mt-2">
           <Input 
             placeholder="Nome do novo perfil" 
             value={newProfileName}
@@ -155,8 +166,8 @@ const ProfileManager = () => {
           />
           <Button type="button" onClick={handleAddProfile}><Plus className="mr-2 h-4 w-4"/>Adicionar</Button>
         </div>
-      </div>
-    </form>
+      </Card>
+    </div>
   )
 }
 
@@ -214,7 +225,7 @@ export default function SettingsPage() {
                 </div>
               </AccordionTrigger>
               <AccordionContent className="pt-4 text-muted-foreground">
-                 Em breve: Defina senhas de administrador, gerencie permissões de perfil e configure o bloqueio por PIN.
+                 Em breve: Implementação da tela de login com PIN, gerenciamento de permissões de administrador e redefinição de senhas.
               </AccordionContent>
             </AccordionItem>
             <AccordionItem value="item-4">
@@ -246,9 +257,9 @@ export default function SettingsPage() {
               <AccordionContent className="pt-4 space-y-2 text-muted-foreground">
                 <p>Bem-vindo ao GiraTempo! Aqui estão algumas dicas:</p>
                 <ul className="list-disc pl-5">
-                    <li>Use a aba <strong>Planilhas</strong> para gerenciar suas funções de produção diárias.</li>
+                    <li>Use a aba <strong>Dashboard</strong> para gerenciar suas funções de produção diárias.</li>
                     <li>O <strong>Cronômetro</strong> é ideal para medições de tempo precisas, nos modos progressivo e regressivo.</li>
-                    <li>Exporte seus dados ou faça backups na aba <strong>Exportar</strong>.</li>
+                    <li>Acesse <strong>Relatórios</strong> para análises inteligentes e exportação de dados.</li>
                     <li>Use as <strong>Sugestões Inteligentes</strong> (✨) para agilizar a criação de novas funções.</li>
                 </ul>
               </AccordionContent>

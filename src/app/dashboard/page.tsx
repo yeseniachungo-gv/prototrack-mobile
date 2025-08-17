@@ -1,4 +1,4 @@
-// src/app/dashboard/page.tsx (Antiga Página de Planilhas/Início)
+// src/app/dashboard/page.tsx
 "use client";
 
 import React, { useState } from 'react';
@@ -267,13 +267,14 @@ export default function DashboardPage() {
   const selectedFunction = activeDay?.functions.find(f => f.id === selectedFunctionId) ?? null;
 
   if (!activeProfile) {
+    // Este estado não deve acontecer por causa do DashboardLayout, mas é uma segurança.
     return (
       <div className="p-4 md:p-6 space-y-4">
         <Header title="Bem-vindo ao GiraTempo" />
         <Card>
           <CardContent className="p-6 text-center">
              <p className="text-muted-foreground">
-              Nenhum perfil selecionado. Volte para a <Link href="/" className="text-primary underline">tela inicial</Link> para escolher um perfil.
+              Carregando perfil... volte para a <Link href="/" className="text-primary underline">tela inicial</Link> se o problema persistir.
             </p>
           </CardContent>
         </Card>
@@ -283,7 +284,7 @@ export default function DashboardPage() {
 
   return (
     <div className="p-4 md:p-6 space-y-4">
-      <Header title={`Planilhas - ${activeProfile.name}`} />
+      <Header title={`Dashboard - ${activeProfile.name}`} />
       
       <DaySelector />
 
@@ -310,7 +311,7 @@ export default function DashboardPage() {
               </div>
             </>
           ) : (
-             <p className="text-muted-foreground text-center py-4">Selecione um dia para ver as funções.</p>
+             <p className="text-muted-foreground text-center py-4">Selecione ou crie um dia para começar.</p>
           )}
         </CardContent>
       </Card>
