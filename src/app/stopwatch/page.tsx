@@ -1,3 +1,4 @@
+
 // src/app/stopwatch/page.tsx
 "use client";
 
@@ -109,15 +110,15 @@ export default function StopwatchPage() {
     setLocalStopwatch(newStopwatchState);
     syncState(newStopwatchState);
   };
-  
-  const elapsedTime = localStopwatch.mode === 'countup' 
-    ? localStopwatch.time 
-    : localStopwatch.initialTime - localStopwatch.time;
 
-  const currentPph = elapsedTime > 0 ? (localStopwatch.pieces / elapsedTime) * 3600 : 0;
+  const calculationDuration = localStopwatch.mode === 'countup' 
+    ? localStopwatch.time
+    : localStopwatch.initialTime;
+  
+  const currentPph = calculationDuration > 0 ? (localStopwatch.pieces / calculationDuration) * 3600 : 0;
   
   const adjustedPieces = localStopwatch.pieces * (1 - (localStopwatch.session.auxiliaryTimePercent / 100));
-  const adjustedPph = elapsedTime > 0 ? (adjustedPieces / elapsedTime) * 3600 : 0;
+  const adjustedPph = calculationDuration > 0 ? (adjustedPieces / calculationDuration) * 3600 : 0;
   
   const isFinished = localStopwatch.mode === 'countdown' && localStopwatch.time === 0 && !localStopwatch.isRunning;
 

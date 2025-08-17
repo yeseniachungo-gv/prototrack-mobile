@@ -1,3 +1,4 @@
+
 // src/contexts/AppContext.tsx
 "use client";
 
@@ -123,17 +124,23 @@ const appReducer = produce((draft: AppState, action: Action) => {
     // Helper to save stopwatch history to the correct profile
     const saveStopwatchHistory = (profile: Profile) => {
         const { session, mode, initialTime, time, pieces } = profile.stopwatch;
-        const duration = mode === 'countdown' ? initialTime - time : time;
+        
+        // This is the duration used for PPH calculation.
+        // For 'countdown', we use the total intended time. For 'countup', we use the final elapsed time.
+        const calculationDuration = mode === 'countdown' ? initialTime : time;
 
-        if (duration > 0 || pieces > 0) {
-            const pph = duration > 0 ? (pieces / duration) * 3600 : 0;
+        // This is the actual elapsed time.
+        const actualDuration = mode === 'countdown' ? initialTime - time : time;
+        
+        if (actualDuration > 0 || pieces > 0) {
+            const pph = calculationDuration > 0 ? (pieces / calculationDuration) * 3600 : 0;
             const adjustedPieces = pieces * (1 - (session.auxiliaryTimePercent / 100));
-            const adjustedPph = duration > 0 ? (adjustedPieces / duration) * 3600 : 0;
+            const adjustedPph = calculationDuration > 0 ? (adjustedPieces / calculationDuration) * 3600 : 0;
 
             const newEntry: StopwatchHistoryEntry = {
                 id: uuidv4(),
                 endTime: new Date().toISOString(),
-                duration,
+                duration: actualDuration,
                 pieces,
                 workerName: session.operator,
                 functionName: session.functionName,
