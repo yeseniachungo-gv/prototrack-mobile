@@ -3,7 +3,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, Timer, FileDown, Settings, LayoutGrid } from 'lucide-react';
+import { Home, Timer, FileDown, Settings, LayoutGrid, MessageSquare } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAppContext } from '@/contexts/AppContext';
 import { useRouter } from 'next/navigation';
@@ -11,6 +11,7 @@ import { useRouter } from 'next/navigation';
 const navItems = [
   { href: '/dashboard', label: 'Dashboard', icon: Home },
   { href: '/stopwatch', label: 'Cronômetro', icon: Timer },
+  { href: '/announcements', label: 'Comunicados', icon: MessageSquare },
   { href: '/reports', label: 'Relatórios', icon: FileDown },
   { href: '/settings', label: 'Config.', icon: Settings },
 ];
@@ -20,7 +21,7 @@ export default function BottomNav() {
   const { dispatch } = useAppContext();
   const router = useRouter();
 
-  const isSelectionOrAdminPage = pathname === '/' || pathname.startsWith('/admin');
+  const isSelectionOrAdminPage = pathname === '/' || pathname.startsWith('/admin') || pathname.startsWith('/login');
 
   if (isSelectionOrAdminPage) {
     return null;

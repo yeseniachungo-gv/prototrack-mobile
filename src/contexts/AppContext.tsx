@@ -3,7 +3,7 @@
 
 import React, { createContext, useReducer, useContext, useEffect, useRef } from 'react';
 import { produce } from 'immer';
-import type { AppState, Day, FunctionEntry, Observation, StopwatchState, Profile } from '@/lib/types';
+import type { AppState, Day, FunctionEntry, Observation, StopwatchState, Profile, Announcement } from '@/lib/types';
 import { v4 as uuidv4 } from 'uuid';
 
 type Action =
@@ -31,7 +31,8 @@ type Action =
   | { type: 'DELETE_PROFILE'; payload: string }
   | { type: 'SET_ACTIVE_PROFILE'; payload: string | null }
   | { type: 'SET_CURRENT_PROFILE_FOR_LOGIN'; payload: string | null }
-  | { type: 'UPDATE_PROFILE_DETAILS', payload: { profileId: string; name: string; pin: string } };
+  | { type: 'UPDATE_PROFILE_DETAILS', payload: { profileId: string; name: string; pin: string } }
+  | { type: 'ADD_ANNOUNCEMENT', payload: { content: string } };
 
 
 const APP_STATE_KEY = 'prototrack-state-v3';
@@ -79,6 +80,7 @@ function getInitialState(): AppState {
         isRunning: false,
         history: []
     },
+    announcements: [],
   };
 }
 
@@ -217,6 +219,19 @@ const appReducer = (state: AppState, action: Action): AppState => {
                     profileToUpdate.pin = action.payload.pin;
                 }
                 return;
+             case 'ADD_ANNOUNCEMENT': {
+                if (activeProfile) {
+                  const newAnnouncement: Announcement = {
+                    id: uuidv4(),
+                    authorProfileId: activeProfile.id,
+                    authorName: activeProfile.name,
+                    content: action.payload.content,
+                    timestamp: new Date().toISOString(),
+                  };
+                  draft.announcements.unshift(newAnnouncement);
+                }
+                return;
+              }
         }
         
         if (!activeProfile) return;
@@ -423,6 +438,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         // Garante que nenhum perfil esteja ativo ao iniciar
         savedState.activeProfileId = null;
         savedState.currentProfileForLogin = null;
+        
+        if (!savedState.announcements) {
+          savedState.announcements = [];
+        }
+
 
         // Reseta o estado do cronômetro para evitar bugs
         const initialStopwatch = getInitialState().stopwatch;

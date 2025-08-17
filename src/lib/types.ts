@@ -1,4 +1,13 @@
 
+
+export interface Announcement {
+  id: string;
+  authorProfileId: string;
+  authorName: string;
+  content: string;
+  timestamp: string; // ISO String
+}
+
 export interface Observation {
   reason: string;
   detail: string;
@@ -60,4 +69,5 @@ export interface AppState {
   currentProfileForLogin: string | null;
   theme: 'light' | 'dark';
   stopwatch: StopwatchState;
+  announcements: Announcement[];
 }
