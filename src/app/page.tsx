@@ -1,6 +1,12 @@
 // src/app/page.tsx (Nova Tela de Seleção de Perfil)
 "use client";
 
+export default home(){
+  return(
+    <main>
+    <h1>prototrack funvionando</h1>
+    <p>se vc esta vendo isso o deplay deu certo</p>  
+    </main>
 import React, { useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAppContext } from '@/contexts/AppContext';
