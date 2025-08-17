@@ -1,38 +1,54 @@
 "use client";
-import React from 'react';
+import React, { useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
-import { MessageSquare, Plus, Trash2 } from 'lucide-react';
+import { MessageSquare, Plus, Trash2, GripVertical } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import type { FunctionEntry, Observation } from '@/lib/types';
 import { useAppContext } from '@/contexts/AppContext';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from './ui/alert-dialog';
+import { useToast } from '@/hooks/use-toast';
 
 // --- Observation Popover Component ---
 interface ObservationPopoverProps {
+  dayId: string;
+  functionId: string;
   worker: string;
   hour: string;
   observation: Observation | undefined;
 }
 
-const ObservationPopover: React.FC<ObservationPopoverProps> = ({ worker, hour, observation }) => {
+const ObservationPopover: React.FC<ObservationPopoverProps> = ({ dayId, functionId, worker, hour, observation }) => {
+  const { dispatch } = useAppContext();
   const motivos = ['Troca de função', 'Treinamento', 'Manutenção de máquina', 'Pausa prolongada', 'Outro'];
-  
-  // TODO: Implementar a lógica de salvar a observação no estado global (AppContext)
+  const [reason, setReason] = useState(observation?.reason || '');
+  const [detail, setDetail] = useState(observation?.detail || '');
+  const [isOpen, setIsOpen] = useState(false);
+  const { toast } = useToast();
+
+  const handleSave = () => {
+    dispatch({
+      type: 'UPDATE_OBSERVATION',
+      payload: { dayId, functionId, worker, hour, reason, detail }
+    });
+    toast({ title: "Observação salva!" });
+    setIsOpen(false);
+  };
   
   return (
-    <Popover>
+    <Popover open={isOpen} onOpenChange={setIsOpen}>
       <PopoverTrigger asChild>
-        <Button size="icon" variant={observation ? "secondary" : "ghost"} className="h-7 w-7">
+        <Button size="icon" variant={observation?.reason || observation?.detail ? "secondary" : "ghost"} className="h-7 w-7">
           <MessageSquare className="h-4 w-4" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-80">
+      <PopoverContent className="w-80 z-50">
         <div className="grid gap-4">
           <div className="space-y-2">
             <h4 className="font-medium leading-none">Observação</h4>
@@ -42,7 +58,7 @@ const ObservationPopover: React.FC<ObservationPopoverProps> = ({ worker, hour, o
           </div>
           <div className="grid gap-2">
             <Label htmlFor={`motivo-${worker}-${hour}`}>Motivo</Label>
-            <Select defaultValue={observation?.reason}>
+            <Select value={reason} onValueChange={setReason}>
               <SelectTrigger>
                 <SelectValue placeholder="Selecione um motivo" />
               </SelectTrigger>
@@ -56,10 +72,11 @@ const ObservationPopover: React.FC<ObservationPopoverProps> = ({ worker, hour, o
             <Textarea
               id={`detalhe-${worker}-${hour}`}
               placeholder="Detalhes adicionais (opcional)"
-              defaultValue={observation?.detail}
+              value={detail}
+              onChange={(e) => setDetail(e.target.value)}
             />
           </div>
-          <Button>Salvar</Button>
+          <Button onClick={handleSave}>Salvar</Button>
         </div>
       </PopoverContent>
     </Popover>
@@ -77,6 +94,8 @@ interface FunctionSheetProps {
 
 export default function FunctionSheet({ isOpen, onClose, func, dayId }: FunctionSheetProps) {
   const { dispatch } = useAppContext();
+  const newWorkerInputRef = useRef<HTMLInputElement>(null);
+  const { toast } = useToast();
 
   if (!func) return null;
   
@@ -88,20 +107,37 @@ export default function FunctionSheet({ isOpen, onClose, func, dayId }: Function
     };
   };
 
-  const handlePiecesChange = (worker: string, hour: string, value: number) => {
-    // TODO: Implementar dispatch para atualizar peças
+  const handlePiecesChange = (worker: string, hour: string, value: string) => {
+     const intValue = parseInt(value) || 0;
+     dispatch({
+       type: 'UPDATE_PIECES',
+       payload: { dayId, functionId: func.id, worker, hour, value: intValue }
+     });
   };
   
   const handleAddWorker = () => {
-    // TODO: Implementar dispatch para adicionar trabalhador
+    const workerName = newWorkerInputRef.current?.value;
+    if (workerName) {
+      dispatch({ type: 'ADD_WORKER_TO_FUNCTION', payload: { dayId, functionId: func.id, workerName }});
+      newWorkerInputRef.current.value = '';
+      toast({ title: `Trabalhador "${workerName}" adicionado!` });
+    } else {
+       toast({ title: "Erro", description: "O nome do trabalhador não pode estar vazio.", variant: "destructive" });
+    }
+  };
+   
+  const handleDeleteWorker = (workerToDelete: string) => {
+    dispatch({ type: 'DELETE_WORKER_FROM_FUNCTION', payload: { dayId, functionId: func.id, workerName: workerToDelete } });
+    toast({ title: `Trabalhador "${workerToDelete}" removido.`, variant: "destructive" });
   };
   
   const handleAddHour = () => {
-     // TODO: Implementar dispatch para adicionar hora
+     dispatch({ type: 'ADD_HOUR_TO_FUNCTION', payload: { dayId, functionId: func.id } });
   };
   
   const handleDeleteHour = (hourToDelete: string) => {
-    // TODO: Implementar dispatch para deletar hora
+    dispatch({ type: 'DELETE_HOUR_FROM_FUNCTION', payload: { dayId, functionId: func.id, hour: hourToDelete }});
+    toast({ title: `Hora "${hourToDelete}" removida.`, variant: "destructive" });
   };
 
   const colTotals = func.hours.map(hour => 
@@ -117,43 +153,81 @@ export default function FunctionSheet({ isOpen, onClose, func, dayId }: Function
           <DialogTitle>Planilha — {func.name}</DialogTitle>
         </DialogHeader>
         
-        <ScrollArea className="flex-1 mt-4 relative">
-          <div className="overflow-x-auto">
+        <div className="flex-1 mt-4 relative">
+          <ScrollArea className="w-full h-full pb-4">
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="min-w-[180px] sticky left-0 bg-card z-10">Trabalhador</TableHead>
+                  <TableHead className="min-w-[200px] sticky left-0 bg-card z-20">Trabalhador</TableHead>
                   {func.hours.map(hour => (
-                    <TableHead key={hour} className="text-center min-w-[120px]">
+                    <TableHead key={hour} className="text-center min-w-[150px]">
                       <div className="flex items-center justify-center gap-1">
                         {hour}
-                        <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => handleDeleteHour(hour)}>
-                          <Trash2 className="h-3 w-3 text-destructive"/>
-                        </Button>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                             <Button size="icon" variant="ghost" className="h-6 w-6">
+                                <Trash2 className="h-3 w-3 text-destructive"/>
+                             </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Esta ação não pode ser desfeita. Isso excluirá permanentemente a coluna de horas "{hour}" e todos os dados associados.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                              <AlertDialogAction onClick={() => handleDeleteHour(hour)}>Excluir</AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
                       </div>
                     </TableHead>
                   ))}
-                  <TableHead className="min-w-[80px] text-center">Total</TableHead>
+                  <TableHead className="min-w-[80px] text-center sticky right-0 bg-card z-20">Total</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {func.workers.map(worker => (
                   <TableRow key={worker}>
-                    <TableCell className="font-medium sticky left-0 bg-card z-10">{worker}</TableCell>
+                    <TableCell className="font-medium sticky left-0 bg-card z-10 flex items-center justify-between">
+                      <span>{worker}</span>
+                       <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                             <Button size="icon" variant="ghost" className="h-6 w-6">
+                                <Trash2 className="h-3 w-3 text-destructive"/>
+                             </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Isso excluirá permanentemente o trabalhador "{worker}" e todos os seus dados nesta planilha.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                              <AlertDialogAction onClick={() => handleDeleteWorker(worker)}>Excluir</AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                    </TableCell>
                     {func.hours.map(hour => {
                       const cellData = getCellData(worker, hour);
-                      const hasObs = cellData?.observation;
                       return (
                         <TableCell key={hour} className="p-2 border align-top">
-                          <div className="space-y-2">
+                          <div className="space-y-2 text-center">
                              <Input
                                 type="number"
-                                className="w-24 text-center"
-                                value={cellData.pieces}
-                                onChange={(e) => handlePiecesChange(worker, hour, parseInt(e.target.value) || 0)}
+                                className="w-24 text-center mx-auto"
+                                defaultValue={cellData.pieces}
+                                onBlur={(e) => handlePiecesChange(worker, hour, e.target.value)}
                                 onClick={(e) => (e.target as HTMLInputElement).select()}
                               />
                              <ObservationPopover
+                                dayId={dayId}
+                                functionId={func.id}
                                 worker={worker}
                                 hour={hour}
                                 observation={cellData.observation}
@@ -162,7 +236,7 @@ export default function FunctionSheet({ isOpen, onClose, func, dayId }: Function
                         </TableCell>
                       )
                     })}
-                    <TableCell className="text-center font-bold">
+                    <TableCell className="text-center font-bold sticky right-0 bg-card z-10">
                        {func.hours.reduce((sum, hour) => sum + (getCellData(worker, hour).pieces || 0), 0)}
                     </TableCell>
                   </TableRow>
@@ -170,24 +244,25 @@ export default function FunctionSheet({ isOpen, onClose, func, dayId }: Function
               </TableBody>
                <TableFooter>
                 <TableRow>
-                  <TableCell className="sticky left-0 bg-card z-10 font-bold">Total/Hora</TableCell>
+                  <TableCell className="sticky left-0 bg-card z-20 font-bold">Total/Hora</TableCell>
                   {colTotals.map((total, index) => (
                     <TableCell key={index} className="text-center font-bold">{total}</TableCell>
                   ))}
-                  <TableCell className="text-center font-bold text-lg">{grandTotal}</TableCell>
+                  <TableCell className="text-center font-bold text-lg sticky right-0 bg-card z-20">{grandTotal}</TableCell>
                 </TableRow>
               </TableFooter>
             </Table>
-          </div>
-          <ScrollBar orientation="horizontal" />
-        </ScrollArea>
+            <ScrollBar orientation="horizontal" className="mt-4" />
+          </ScrollArea>
+        </div>
 
         <DialogFooter className="p-2 sm:p-0 mt-4 flex-wrap gap-2 justify-between">
-            <div>
-              <Button variant="outline" size="sm" onClick={handleAddWorker}><Plus className="mr-2 h-4 w-4"/>Trabalhador</Button>
-              <Button variant="outline" size="sm" onClick={handleAddHour} className="ml-2"><Plus className="mr-2 h-4 w-4"/>Hora</Button>
+             <div className="flex gap-2 items-center">
+                <Input ref={newWorkerInputRef} placeholder="Nome do novo trabalhador" className="h-10"/>
+                <Button variant="outline" size="sm" onClick={handleAddWorker}><Plus className="mr-2 h-4 w-4"/>Trabalhador</Button>
+                <Button variant="outline" size="sm" onClick={handleAddHour}><Plus className="mr-2 h-4 w-4"/>Hora</Button>
             </div>
-            <Button size="sm" variant="destructive" onClick={onClose}>Fechar</Button>
+            <Button size="sm" onClick={onClose}>Fechar</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

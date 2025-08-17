@@ -2,7 +2,7 @@
 
 import React, { createContext, useReducer, useContext, useEffect } from 'react';
 import { produce } from 'immer';
-import type { AppState, Day, FunctionEntry } from '@/lib/types';
+import type { AppState, Day, FunctionEntry, Observation } from '@/lib/types';
 import { v4 as uuidv4 } from 'uuid';
 
 
@@ -12,14 +12,19 @@ type Action =
   | { type: 'ADD_DAY' }
   | { type: 'SET_ACTIVE_DAY', payload: string }
   | { type: 'ADD_FUNCTION', payload: { dayId: string; functionName: string } }
-  | { type: 'OPEN_FUNCTION_SHEET', payload: { dayId: string, functionId: string } };
+  | { type: 'DELETE_FUNCTION', payload: { dayId: string; functionId: string } }
+  | { type: 'RENAME_FUNCTION', payload: { dayId: string; functionId: string; newName: string } }
+  | { type: 'ADD_WORKER_TO_FUNCTION', payload: { dayId: string; functionId: string; workerName: string } }
+  | { type: 'DELETE_WORKER_FROM_FUNCTION', payload: { dayId: string; functionId: string; workerName: string } }
+  | { type: 'ADD_HOUR_TO_FUNCTION', payload: { dayId: string; functionId: string } }
+  | { type: 'DELETE_HOUR_FROM_FUNCTION', payload: { dayId: string; functionId: string; hour: string } }
+  | { type: 'UPDATE_PIECES', payload: { dayId: string; functionId: string; worker: string; hour: string; value: number } }
+  | { type: 'UPDATE_OBSERVATION', payload: { dayId: string; functionId: string; worker: string; hour: string; reason: string; detail: string } };
 
-// --- Chave e Estado Inicial ---
-const APP_STATE_KEY = 'prototrack-state-v2'; // Usamos v2 para garantir um estado limpo
+
+const APP_STATE_KEY = 'prototrack-state-v2';
 
 function getInitialState(): AppState {
-  // O estado inicial agora é carregado no AppProvider para garantir que o localStorage esteja disponível.
-  // Retornamos um estado mínimo para evitar erros no lado do servidor.
   const today = new Date().toISOString().split('T')[0];
   return {
     days: [{ id: today, functions: [] }],
@@ -32,33 +37,37 @@ const AppContext = createContext<{
   state: AppState;
   dispatch: React.Dispatch<Action>;
   activeDay: Day | null;
-  selectedFunction: FunctionEntry | null;
 } | undefined>(undefined);
 
 
-// --- Reducer ---
 const appReducer = (state: AppState, action: Action): AppState => {
   return produce(state, draft => {
+    const day = draft.days.find(d => d.id === draft.activeDayId);
+    
+    // As ações que não precisam de um dia ativo são tratadas primeiro
     switch (action.type) {
       case 'TOGGLE_THEME':
         draft.theme = draft.theme === 'dark' ? 'light' : 'dark';
         break;
-
       case 'SET_STATE':
         return action.payload;
-
+      case 'SET_ACTIVE_DAY':
+        if (draft.days.find(d => d.id === action.payload)) {
+          draft.activeDayId = action.payload;
+        }
+        break;
       case 'ADD_DAY': {
         const today = new Date();
-        today.setDate(today.getDate() + draft.days.length); // Evita duplicatas simples
-        const newDayId = today.toISOString().split('T')[0];
+        const nextDay = new Date(draft.days[draft.days.length - 1]?.id + 'T00:00:00' || today);
+        nextDay.setDate(nextDay.getDate() + 1);
+        const newDayId = nextDay.toISOString().split('T')[0];
 
         if (!draft.days.find(d => d.id === newDayId)) {
           const lastDay = draft.days[draft.days.length - 1];
           const newDay: Day = {
             id: newDayId,
-            functions: lastDay ? JSON.parse(JSON.stringify(lastDay.functions)) : [], // Clona estrutura
+            functions: lastDay ? JSON.parse(JSON.stringify(lastDay.functions)) : [],
           };
-          // Reseta os dados da estrutura clonada
           newDay.functions.forEach(func => {
             func.pieces = {};
             func.observations = {};
@@ -68,48 +77,97 @@ const appReducer = (state: AppState, action: Action): AppState => {
         }
         break;
       }
-      
-      case 'SET_ACTIVE_DAY':
-        if (draft.days.find(d => d.id === action.payload)) {
-          draft.activeDayId = action.payload;
-        }
-        break;
-      
-      case 'ADD_FUNCTION': {
-        const { dayId, functionName } = action.payload;
-        const day = draft.days.find(d => d.id === dayId);
-        if (day && !day.functions.find(f => f.name === functionName)) {
-          // Estrutura padrão para uma nova função
-          const defaultHours = Array.from({ length: 10 }, (_, i) => `${String(i + 8).padStart(2, '0')}:00`);
-          const defaultWorkers = Array.from({ length: 3 }, (_, i) => `Trabalhador ${i + 1}`);
+    }
 
-          day.functions.push({
-            id: uuidv4(),
-            name: functionName,
-            hours: defaultHours,
-            workers: defaultWorkers,
-            pieces: {},
-            observations: {},
-          });
-        }
-        break;
-      }
+    // Ações que OPERAM sobre um dia (e possivelmente uma função)
+    if (day) {
+        const { payload } = action as any; // Para evitar repetição
+        const func = payload?.functionId ? day.functions.find(f => f.id === payload.functionId) : undefined;
         
-      // Ações para a planilha (serão adicionadas aqui)
-
-      default:
-        break;
+        switch (action.type) {
+            case 'ADD_FUNCTION':
+                if (!day.functions.find(f => f.name === payload.functionName)) {
+                    const defaultHours = Array.from({ length: 10 }, (_, i) => `${String(i + 8).padStart(2, '0')}:00`);
+                    const defaultWorkers = Array.from({ length: 3 }, (_, i) => `Trabalhador ${i + 1}`);
+                    day.functions.push({
+                        id: uuidv4(),
+                        name: payload.functionName,
+                        hours: defaultHours,
+                        workers: defaultWorkers,
+                        pieces: {},
+                        observations: {},
+                    });
+                }
+                break;
+            case 'DELETE_FUNCTION':
+                day.functions = day.functions.filter(f => f.id !== payload.functionId);
+                break;
+            case 'RENAME_FUNCTION':
+                if (func) func.name = payload.newName;
+                break;
+            case 'ADD_WORKER_TO_FUNCTION':
+                if (func && !func.workers.includes(payload.workerName)) {
+                   if (payload.workerName.trim()){
+                     func.workers.push(payload.workerName.trim());
+                   }
+                }
+                break;
+            case 'DELETE_WORKER_FROM_FUNCTION':
+                if (func) {
+                    func.workers = func.workers.filter(w => w !== payload.workerName);
+                }
+                break;
+            case 'ADD_HOUR_TO_FUNCTION':
+                if (func) {
+                    const lastHourStr = func.hours[func.hours.length - 1] || "07:00";
+                    const lastHour = parseInt(lastHourStr.split(':')[0]);
+                    const newHour = (lastHour + 1) % 24;
+                    const newHourStr = `${String(newHour).padStart(2, '0')}:00`;
+                    if (!func.hours.includes(newHourStr)) {
+                       func.hours.push(newHourStr);
+                    }
+                }
+                break;
+            case 'DELETE_HOUR_FROM_FUNCTION':
+                if (func) {
+                    func.hours = func.hours.filter(h => h !== payload.hour);
+                    Object.keys(func.pieces).forEach(key => {
+                        if (key.endsWith(`_${payload.hour}`)) delete func.pieces[key];
+                    });
+                    Object.keys(func.observations).forEach(key => {
+                        if (key.endsWith(`_${payload.hour}`)) delete func.observations[key];
+                    });
+                }
+                break;
+            case 'UPDATE_PIECES':
+                if (func) {
+                    const key = `${payload.worker}_${payload.hour}`;
+                    func.pieces[key] = payload.value;
+                }
+                break;
+            case 'UPDATE_OBSERVATION':
+                if (func) {
+                    const key = `${payload.worker}_${payload.hour}`;
+                    if (!payload.reason && !payload.detail) {
+                        delete func.observations[key];
+                    } else {
+                        func.observations[key] = {
+                            reason: payload.reason,
+                            detail: payload.detail
+                        };
+                    }
+                }
+                break;
+        }
     }
   });
 };
 
 
-// --- Provider ---
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [state, dispatch] = useReducer(appReducer, getInitialState());
   const [isInitialized, setIsInitialized] = React.useState(false);
   
-  // Efeito para carregar o estado do localStorage apenas uma vez no cliente
   useEffect(() => {
     try {
       const savedState = localStorage.getItem(APP_STATE_KEY);
@@ -122,14 +180,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setIsInitialized(true);
   }, []);
 
-  // Efeito para salvar o estado no localStorage sempre que ele mudar
   useEffect(() => {
     if (isInitialized) {
-      localStorage.setItem(APP_STATE_KEY, JSON.stringify(state));
+      try {
+        localStorage.setItem(APP_STATE_KEY, JSON.stringify(state));
+      } catch (e) {
+        console.error("Falha ao salvar o estado.", e)
+      }
     }
   }, [state, isInitialized]);
 
-  // Efeito para aplicar a classe do tema no elemento <html>
   useEffect(() => {
     const isDark = state.theme === 'dark';
     document.documentElement.classList.toggle('dark', isDark);
@@ -137,21 +197,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, [state.theme]);
   
   const activeDay = state.days.find(d => d.id === state.activeDayId) || null;
-  const selectedFunction = null; // Lógica para função selecionada virá aqui
 
   if (!isInitialized) {
-    return null; // ou um componente de loading
+    return null; // Evita renderizar no lado do servidor ou antes da hidratação
   }
 
   return (
-    <AppContext.Provider value={{ state, dispatch, activeDay, selectedFunction }}>
+    <AppContext.Provider value={{ state, dispatch, activeDay }}>
       {children}
     </AppContext.Provider>
   );
 };
 
 
-// --- Hook ---
 export const useAppContext = () => {
   const context = useContext(AppContext);
   if (context === undefined) {
