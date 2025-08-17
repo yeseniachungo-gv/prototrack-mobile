@@ -1,3 +1,4 @@
+
 // src/contexts/AppContext.tsx
 "use client";
 
@@ -436,7 +437,7 @@ const appReducer = produce((draft: AppState, action: Action) => {
                         functionsTemplate = [{
                             id: uuidv4(),
                             name: "Função Exemplo",
-                            workers: ['Trabalhador 1'],
+                            workers: activeProfile.masterWorkers.length > 0 ? [activeProfile.masterWorkers[0].name] : [],
                             hours: defaultHours,
                             pieces: {},
                             observations: {}
@@ -473,6 +474,9 @@ const appReducer = produce((draft: AppState, action: Action) => {
                             activeProfile.days.push(targetDay);
                         }
                         
+                        // Also clone the daily goal
+                        activeProfile.dailyGoal = JSON.parse(JSON.stringify(activeProfile.dailyGoal));
+
                         activeProfile.days.sort((a, b) => new Date(a.id).getTime() - new Date(b.id).getTime());
                         activeProfile.activeDayId = todayId;
                     }
@@ -644,3 +648,5 @@ export const useAppContext = () => {
   }
   return context;
 };
+
+    
