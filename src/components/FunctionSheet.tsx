@@ -25,13 +25,15 @@ interface ObservationPopoverProps {
 }
 
 const ObservationPopover: React.FC<ObservationPopoverProps> = ({ dayId, functionId, worker, hour, observation }) => {
-  const { state, dispatch } = useAppContext();
-  const { masterStopReasons } = state;
+  const { activeProfile, dispatch } = useAppContext();
+  const { toast } = useToast();
+  
   const [reason, setReason] = useState(observation?.reason || '');
   const [detail, setDetail] = useState(observation?.detail || '');
   const [minutesStopped, setMinutesStopped] = useState(observation?.minutesStopped || 0);
   const [isOpen, setIsOpen] = useState(false);
-  const { toast } = useToast();
+
+  if (!activeProfile) return null;
 
   const handleSave = () => {
     dispatch({
@@ -66,7 +68,7 @@ const ObservationPopover: React.FC<ObservationPopoverProps> = ({ dayId, function
                 <SelectValue placeholder="Selecione um motivo" />
               </SelectTrigger>
               <SelectContent>
-                {masterStopReasons.map(m => <SelectItem key={m.id} value={m.name}>{m.name}</SelectItem>)}
+                {activeProfile.masterStopReasons.map(m => <SelectItem key={m.id} value={m.name}>{m.name}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>
@@ -108,12 +110,11 @@ interface FunctionSheetProps {
 }
 
 export default function FunctionSheet({ isOpen, onClose, func, dayId }: FunctionSheetProps) {
-  const { state, dispatch } = useAppContext();
-  const { masterWorkers } = state;
+  const { activeProfile, dispatch } = useAppContext();
   const [newWorkerName, setNewWorkerName] = useState('');
   const { toast } = useToast();
 
-  if (!func) return null;
+  if (!func || !activeProfile) return null;
   
   const getCellData = (worker: string, hour: string) => {
     const key = `${worker}_${hour}`;
@@ -161,7 +162,7 @@ export default function FunctionSheet({ isOpen, onClose, func, dayId }: Function
 
   const grandTotal = colTotals.reduce((sum, total) => sum + total, 0);
   
-  const availableWorkers = masterWorkers.filter(
+  const availableWorkers = activeProfile.masterWorkers.filter(
     masterWorker => !func.workers.some(fnWorker => fnWorker.toLowerCase() === masterWorker.name.toLowerCase())
   );
 

@@ -65,13 +65,25 @@ const createDefaultProfile = (name: string): Profile => {
         dailyGoal: {
             target: 5000,
             functionId: null,
-        }
+        },
+        masterWorkers: [
+            { id: uuidv4(), name: 'Trabalhador 1'},
+            { id: uuidv4(), name: 'Trabalhador 2'},
+            { id: uuidv4(), name: 'Trabalhador 3'},
+        ],
+        masterStopReasons: [
+            { id: uuidv4(), name: 'Troca de função' },
+            { id: uuidv4(), name: 'Treinamento' },
+            { id: uuidv4(), name: 'Manutenção de máquina' },
+            { id: uuidv4(), name: 'Pausa prolongada' },
+            { id: uuidv4(), name: 'Outro' },
+        ]
     };
 };
 
 function getInitialState(): AppState {
   return {
-    plan: 'premium', // Default to premium for existing users
+    plan: 'premium',
     profiles: [createDefaultProfile('Perfil Padrão')],
     activeProfileId: null, 
     currentProfileForLogin: null,
@@ -90,18 +102,6 @@ function getInitialState(): AppState {
         history: []
     },
     announcements: [],
-    masterWorkers: [
-      { id: uuidv4(), name: 'Trabalhador 1'},
-      { id: uuidv4(), name: 'Trabalhador 2'},
-      { id: uuidv4(), name: 'Trabalhador 3'},
-    ],
-    masterStopReasons: [
-      { id: uuidv4(), name: 'Troca de função' },
-      { id: uuidv4(), name: 'Treinamento' },
-      { id: uuidv4(), name: 'Manutenção de máquina' },
-      { id: uuidv4(), name: 'Pausa prolongada' },
-      { id: uuidv4(), name: 'Outro' },
-    ]
   };
 }
 
@@ -207,25 +207,6 @@ const appReducer = produce((draft: AppState, action: Action) => {
             break;
         }
 
-        // --- Master Data Actions ---
-        case 'ADD_MASTER_DATA': {
-            const { type, name } = action.payload;
-            const targetList = type === 'workers' ? draft.masterWorkers : draft.masterStopReasons;
-            if (!targetList.find(i => i.name.toLowerCase() === name.toLowerCase())) {
-                targetList.push({ id: uuidv4(), name });
-            }
-            break;
-        }
-        case 'DELETE_MASTER_DATA': {
-             const { type, id } = action.payload;
-             if (type === 'workers') {
-                draft.masterWorkers = draft.masterWorkers.filter(i => i.id !== id);
-             } else {
-                draft.masterStopReasons = draft.masterStopReasons.filter(i => i.id !== id);
-             }
-             break;
-        }
-
         // --- Stopwatch Actions ---
         case 'SET_STOPWATCH_MODE': {
             if (draft.stopwatch.isRunning) break;
@@ -307,6 +288,24 @@ const appReducer = produce((draft: AppState, action: Action) => {
             if (!activeProfile) break;
 
             switch(action.type) {
+                 // --- Master Data Actions (Profile specific) ---
+                case 'ADD_MASTER_DATA': {
+                    const { type, name } = action.payload;
+                    const targetList = type === 'workers' ? activeProfile.masterWorkers : activeProfile.masterStopReasons;
+                    if (!targetList.find(i => i.name.toLowerCase() === name.toLowerCase())) {
+                        targetList.push({ id: uuidv4(), name });
+                    }
+                    break;
+                }
+                case 'DELETE_MASTER_DATA': {
+                    const { type, id } = action.payload;
+                    if (type === 'workers') {
+                        activeProfile.masterWorkers = activeProfile.masterWorkers.filter(i => i.id !== id);
+                    } else {
+                        activeProfile.masterStopReasons = activeProfile.masterStopReasons.filter(i => i.id !== id);
+                    }
+                    break;
+                }
                 case 'SET_ACTIVE_DAY': {
                     if (activeProfile.days.find(d => d.id === action.payload)) {
                         activeProfile.activeDayId = action.payload;
@@ -451,13 +450,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         savedState.profiles.forEach((p: Profile) => {
           if (!p.pin) p.pin = '1234';
           if (!p.id) p.id = uuidv4();
+          if (!p.masterWorkers) p.masterWorkers = createDefaultProfile('').masterWorkers;
+          if (!p.masterStopReasons) p.masterStopReasons = createDefaultProfile('').masterStopReasons;
         });
         
+        // Clear global master data from old states
+        delete (savedState as any).masterWorkers;
+        delete (savedState as any).masterStopReasons;
+
         savedState.activeProfileId = null;
         savedState.currentProfileForLogin = null;
         if (!savedState.announcements) savedState.announcements = [];
-        if (!savedState.masterWorkers) savedState.masterWorkers = getInitialState().masterWorkers;
-        if (!savedState.masterStopReasons) savedState.masterStopReasons = getInitialState().masterStopReasons;
 
         // Reset stopwatch state to avoid bugs, keeping history
         const initialStopwatch = getInitialState().stopwatch;

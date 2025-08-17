@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { useAppContext } from '@/contexts/AppContext';
-import { Moon, Sun, Palette, HelpCircle, User, Download, Upload, FileText, Crown } from 'lucide-react';
+import { Moon, Sun, Palette, HelpCircle, User, Download, Upload, FileText, Crown, HardHat, AlertTriangle, Trash2 } from 'lucide-react';
 import {
   Accordion,
   AccordionContent,
@@ -17,6 +17,65 @@ import {
 } from "@/components/ui/accordion";
 import { Label } from '@/components/ui/label';
 import Link from 'next/link';
+import type { MasterDataItem } from '@/lib/types';
+
+
+const MasterDataManager = ({ title, icon: Icon, items, type }: { title: string, icon: React.ElementType, items: MasterDataItem[], type: 'workers' | 'reasons' }) => {
+    const { dispatch } = useAppContext();
+    const [newItemName, setNewItemName] = useState('');
+    const { toast } = useToast();
+
+    const handleAddItem = () => {
+        if (!newItemName.trim()) {
+            toast({ title: 'Erro', description: 'O nome não pode estar vazio.', variant: 'destructive'});
+            return;
+        }
+        dispatch({ type: 'ADD_MASTER_DATA', payload: { type, name: newItemName.trim() }});
+        toast({ title: 'Item adicionado!' });
+        setNewItemName('');
+    }
+
+    const handleDeleteItem = (id: string) => {
+        dispatch({ type: 'DELETE_MASTER_DATA', payload: { type, id }});
+        toast({ title: 'Item removido.', variant: 'destructive'});
+    }
+
+    return (
+        <Card>
+            <CardHeader>
+                <CardTitle className="flex items-center gap-2"><Icon /> {title}</CardTitle>
+                 <CardDescription>
+                    Gerencie os {type === 'workers' ? 'trabalhadores' : 'motivos de parada'} disponíveis para este perfil.
+                </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+                <div className="flex items-center gap-2">
+                    <Input 
+                        placeholder={`Nome do novo ${type === 'workers' ? 'trabalhador' : 'motivo'}`} 
+                        value={newItemName}
+                        onChange={e => setNewItemName(e.target.value)}
+                        onKeyDown={e => e.key === 'Enter' && handleAddItem()}
+                    />
+                    <Button onClick={handleAddItem} size="sm">Adicionar</Button>
+                </div>
+                <div className="max-h-60 overflow-y-auto pr-2 space-y-2">
+                    {items.map(item => (
+                        <div key={item.id} className="flex items-center justify-between p-2 bg-muted rounded-md">
+                            <span>{item.name}</span>
+                             <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleDeleteItem(item.id)}>
+                                <Trash2 className="h-4 w-4 text-destructive"/>
+                            </Button>
+                        </div>
+                    ))}
+                     {items.length === 0 && (
+                        <p className="text-sm text-muted-foreground text-center py-4">Nenhum item cadastrado.</p>
+                    )}
+                </div>
+            </CardContent>
+        </Card>
+    );
+};
+
 
 export default function SettingsPage() {
   const { toast } = useToast();
@@ -146,6 +205,24 @@ export default function SettingsPage() {
     <div className="p-4 md:p-6 space-y-4">
       <Header title="Configurações" />
 
+      {/* Profile-specific settings */}
+      {activeProfile && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <MasterDataManager 
+                title="Cadastro de Trabalhadores"
+                icon={HardHat}
+                items={activeProfile.masterWorkers}
+                type="workers"
+            />
+            <MasterDataManager 
+                title="Cadastro de Motivos de Parada"
+                icon={AlertTriangle}
+                items={activeProfile.masterStopReasons}
+                type="reasons"
+            />
+        </div>
+      )}
+
       <Card>
         <CardContent className="p-0">
            <Accordion type="single" collapsible className="w-full" defaultValue="item-1">
@@ -267,7 +344,7 @@ export default function SettingsPage() {
                     <li>O <strong>Cronômetro</strong> é ideal para medições de tempo precisas de um operador.</li>
                     <li>Acesse <strong>Relatórios</strong> para análises automáticas e exportação de dados.</li>
                     <li>Use o <strong>Mural</strong> para se comunicar com outras equipes.</li>
-                    <li>O painel <strong>Admin</strong> permite gerenciar perfis, trabalhadores e motivos de parada.</li>
+                    <li>O painel <strong>Admin</strong> permite gerenciar perfis, enquanto as <strong>Configurações</strong> do seu perfil permitem gerenciar trabalhadores e motivos de parada.</li>
                 </ul>
               </AccordionContent>
             </AccordionItem>

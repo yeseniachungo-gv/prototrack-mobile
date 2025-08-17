@@ -63,6 +63,11 @@ export interface DailyGoal {
   functionId: string | null;
 }
 
+export interface MasterDataItem {
+  id: string;
+  name: string;
+}
+
 export interface Profile {
   id: string;
   name:string;
@@ -70,11 +75,8 @@ export interface Profile {
   days: Day[];
   activeDayId: string | null;
   dailyGoal: DailyGoal;
-}
-
-export interface MasterDataItem {
-  id: string;
-  name: string;
+  masterWorkers: MasterDataItem[];
+  masterStopReasons: MasterDataItem[];
 }
 
 export interface AppState {
@@ -85,6 +87,4 @@ export interface AppState {
   theme: 'light' | 'dark';
   stopwatch: StopwatchState;
   announcements: Announcement[];
-  masterWorkers: MasterDataItem[];
-  masterStopReasons: MasterDataItem[];
 }
