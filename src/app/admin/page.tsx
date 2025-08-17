@@ -1,31 +1,48 @@
 // src/app/admin/page.tsx
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import Header from '@/components/Header';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { ShieldCheck, Users, BarChart2, Loader2, BookCheck } from 'lucide-react';
-import Link from 'next/link';
+import { ShieldCheck, Users, BarChart2, Loader2, BookCheck, Plus, Trash2 } from 'lucide-react';
 import { useAppContext } from '@/contexts/AppContext';
 import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import ReportDialog from '@/components/ReportDialog';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { generateConsolidatedReport, GenerateConsolidatedReportOutput } from '@/ai/flows/generate-consolidated-report';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { format, parseISO } from 'date-fns';
+import { Input } from '@/components/ui/input';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+
 
 const AdminProductionChart = () => {
-    const { state, activeDay } = useAppContext();
+    const { state } = useAppContext();
+    const [selectedDayId, setSelectedDayId] = useState<string | null>(state.profiles[0]?.activeDayId || null);
 
-    if (!activeDay) {
-        return (
-            <div className="text-center text-muted-foreground py-8">
-                Selecione um dia no Dashboard para visualizar os dados.
-            </div>
-        );
+    const allDays = useMemo(() => {
+        const daysSet = new Set<string>();
+        state.profiles.forEach(p => p.days.forEach(d => daysSet.add(d.id)));
+        return Array.from(daysSet).sort((a,b) => new Date(b).getTime() - new Date(a).getTime());
+    }, [state.profiles]);
+    
+    if (allDays.length === 0) {
+        return <div className="text-center text-muted-foreground py-8">Nenhum dia com dados encontrado.</div>;
     }
 
+    if(selectedDayId && !allDays.includes(selectedDayId)){
+        setSelectedDayId(allDays[0] || null);
+    }
+    
     const chartData = state.profiles.map(profile => {
-        const dayData = profile.days.find(d => d.id === activeDay.id);
+        const dayData = profile.days.find(d => d.id === (selectedDayId || allDays[0]));
         const totalPieces = dayData 
             ? dayData.functions.reduce((total, func) => total + Object.values(func.pieces).reduce((sum, p) => sum + p, 0), 0)
             : 0;
@@ -36,65 +53,174 @@ const AdminProductionChart = () => {
         };
     }).filter(d => d.produção > 0);
 
-    if (chartData.length === 0) {
-        return (
-            <div className="text-center text-muted-foreground py-8">
+    return (
+      <div className="space-y-4">
+        <div className="w-full sm:w-auto">
+             <Select value={selectedDayId ?? ''} onValueChange={setSelectedDayId}>
+                <SelectTrigger className="w-full sm:w-[280px]">
+                    <SelectValue placeholder="Selecione um dia para análise" />
+                </SelectTrigger>
+                <SelectContent>
+                {allDays.map(dayId => (
+                    <SelectItem key={dayId} value={dayId}>
+                     {format(parseISO(dayId), "eeee, dd 'de' MMMM 'de' yyyy")}
+                    </SelectItem>
+                ))}
+                </SelectContent>
+            </Select>
+        </div>
+
+        {chartData.length > 0 ? (
+            <ResponsiveContainer width="100%" height={350}>
+                <BarChart data={chartData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                    <XAxis dataKey="name" stroke="hsl(var(--muted-foreground))" fontSize={12} />
+                    <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} />
+                    <Tooltip 
+                        contentStyle={{
+                            backgroundColor: 'hsl(var(--card))',
+                            borderColor: 'hsl(var(--border))',
+                            color: 'hsl(var(--card-foreground))'
+                        }}
+                    />
+                    <Legend wrapperStyle={{fontSize: "14px"}}/>
+                    <Bar dataKey="produção" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                </BarChart>
+            </ResponsiveContainer>
+        ) : (
+             <div className="text-center text-muted-foreground py-8">
                 Nenhum dado de produção encontrado para este dia.
             </div>
-        );
-    }
-
-    return (
-        <ResponsiveContainer width="100%" height={350}>
-            <BarChart data={chartData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                <XAxis dataKey="name" stroke="hsl(var(--muted-foreground))" fontSize={12} />
-                <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} />
-                <Tooltip 
-                    contentStyle={{
-                        backgroundColor: 'hsl(var(--card))',
-                        borderColor: 'hsl(var(--border))',
-                        color: 'hsl(var(--card-foreground))'
-                    }}
-                />
-                <Legend wrapperStyle={{fontSize: "14px"}}/>
-                <Bar dataKey="produção" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
-            </BarChart>
-        </ResponsiveContainer>
+        )}
+      </div>
     );
 };
 
+const ProfileManager = () => {
+    const { state, dispatch } = useAppContext();
+    const { profiles } = state;
+    const [newProfileName, setNewProfileName] = useState('');
+    const { toast } = useToast();
+
+    const handleAddProfile = () => {
+        if (newProfileName.trim() && !profiles.find(p => p.name.toLowerCase() === newProfileName.trim().toLowerCase())) {
+            dispatch({ type: 'ADD_PROFILE', payload: newProfileName.trim() });
+            toast({ title: `Perfil "${newProfileName.trim()}" criado!` });
+            setNewProfileName('');
+        } else {
+            toast({ title: 'Erro', description: 'Nome do perfil inválido ou já existe.', variant: 'destructive' });
+        }
+    };
+    
+    const handleDeleteProfile = (profileId: string, profileName: string) => {
+        if (profiles.length > 1) {
+            dispatch({ type: 'DELETE_PROFILE', payload: profileId });
+            toast({ title: `Perfil "${profileName}" excluído.`, variant: 'destructive' });
+        } else {
+            toast({ title: 'Ação não permitida', description: 'Não é possível excluir o único perfil existente.', variant: 'destructive' });
+        }
+    }
+
+    const handleUpdateProfilePin = (profileId: string, newPin: string) => {
+        const profile = profiles.find(p => p.id === profileId);
+        if (profile && newPin.trim().length === 4 && /^\d+$/.test(newPin.trim())) {
+             dispatch({
+                type: 'UPDATE_PROFILE_DETAILS',
+                payload: { profileId, name: profile.name, pin: newPin.trim() },
+            });
+            toast({ title: `PIN do perfil "${profile.name}" atualizado!` });
+        } else {
+            toast({ title: 'PIN inválido', description: 'O PIN deve ter exatamente 4 dígitos numéricos.', variant: 'destructive' });
+        }
+    }
+    
+    return (
+        <div className="space-y-4">
+             <div className="flex items-center gap-2">
+                <Input 
+                  placeholder="Nome do novo perfil" 
+                  value={newProfileName}
+                  onChange={e => setNewProfileName(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && handleAddProfile()}
+                />
+                <Button onClick={handleAddProfile}><Plus className="mr-2 h-4 w-4"/>Adicionar</Button>
+              </div>
+
+            <div className="space-y-2">
+                {profiles.map(profile => (
+                    <Card key={profile.id} className="flex items-center justify-between p-4">
+                       <div>
+                         <p className="font-bold">{profile.name}</p>
+                         <p className="text-sm text-muted-foreground">ID: {profile.id}</p>
+                       </div>
+                       <div className="flex items-center gap-2">
+                        <Input
+                            type="password"
+                            placeholder="Novo PIN"
+                            maxLength={4}
+                            className="w-28"
+                            onBlur={(e) => handleUpdateProfilePin(profile.id, e.target.value)}
+                        />
+                         <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button type="button" variant="destructive" size="icon" disabled={profiles.length <= 1}>
+                                <Trash2 className="h-4 w-4"/>
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Excluir Perfil "{profile.name}"?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  Atenção: Esta ação é irreversível. Todos os dados associados a este perfil serão permanentemente excluídos.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                <AlertDialogAction onClick={() => handleDeleteProfile(profile.id, profile.name)}>
+                                  Confirmar Exclusão
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                       </div>
+                    </Card>
+                ))}
+            </div>
+        </div>
+    )
+}
+
 
 export default function AdminPage() {
-  const { state, activeDay } = useAppContext();
+  const { state } = useAppContext();
   const { toast } = useToast();
   const [isGenerating, setIsGenerating] = useState(false);
   const [reportData, setReportData] = useState<GenerateConsolidatedReportOutput | null>(null);
   const [isReportOpen, setIsReportOpen] = useState(false);
 
   const handleGenerateConsolidatedReport = async () => {
-    if (!activeDay) {
-        toast({ title: "Nenhum dia selecionado", description: "Vá para o dashboard de um perfil para selecionar um dia.", variant: "destructive" });
+    // This logic needs to be adapted as there's no single "activeDay" for admin
+    const allDaysSet = new Set<string>();
+    state.profiles.forEach(p => p.days.forEach(d => allDaysSet.add(d.id)));
+    const latestDay = Array.from(allDaysSet).sort((a,b) => new Date(b).getTime() - new Date(a).getTime())[0];
+    
+    if (!latestDay) {
+        toast({ title: "Nenhum dado encontrado", description: "Não há dados de produção em nenhum perfil para gerar um relatório.", variant: "destructive" });
         return;
     }
+    
     setIsGenerating(true);
     try {
         const allProfilesData = state.profiles.map(profile => {
-            const dayData = profile.days.find(d => d.id === activeDay.id);
+            const dayData = profile.days.find(d => d.id === latestDay);
             return {
                 profileName: profile.name,
                 productionData: dayData ? dayData.functions : []
             };
-        }).filter(p => p.productionData.length > 0);
-
-        if (allProfilesData.length === 0) {
-            toast({ title: "Sem dados para o dia", description: `Nenhum perfil registrou produção no dia ${activeDay.id}.`, variant: "destructive" });
-            setIsGenerating(false);
-            return;
-        }
+        });
 
         const report = await generateConsolidatedReport({
-            reportDate: activeDay.id,
+            reportDate: latestDay,
             allProfilesData: JSON.stringify(allProfilesData),
         });
 
@@ -135,7 +261,7 @@ export default function AdminPage() {
                 <BarChart2 className="text-primary" /> Análise Comparativa de Perfis
               </CardTitle>
               <CardDescription>
-                Visualize a produção total de cada perfil para o dia selecionado no dashboard.
+                Visualize e compare a produção total de cada perfil por dia.
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -147,13 +273,11 @@ export default function AdminPage() {
             <CardHeader>
                 <CardTitle className="flex items-center gap-2"><Users /> Gestão de Perfis e Acessos</CardTitle>
                 <CardDescription>
-                    Adicione ou remova perfis, altere nomes e redefina PINs de acesso.
+                    Adicione ou remova perfis e redefina os PINs de acesso de 4 dígitos.
                 </CardDescription>
             </CardHeader>
           <CardContent>
-             <p className="text-muted-foreground">
-              Acesse as <Link href="/settings" className="text-primary underline">Configurações</Link> para gerenciar todos os perfis.
-            </p>
+             <ProfileManager />
           </CardContent>
         </Card>
 
@@ -161,11 +285,11 @@ export default function AdminPage() {
             <CardHeader>
                 <CardTitle className="flex items-center gap-2"><ShieldCheck /> Relatórios Consolidados</CardTitle>
                 <CardDescription>
-                    Gere análises detalhadas combinando os dados de todos os perfis para o dia selecionado.
+                    Gere análises detalhadas combinando os dados de todos os perfis para o dia mais recente.
                 </CardDescription>
             </CardHeader>
            <CardContent>
-            <Button onClick={handleGenerateConsolidatedReport} disabled={!activeDay || isGenerating}>
+            <Button onClick={handleGenerateConsolidatedReport} disabled={isGenerating}>
                 {isGenerating ? <Loader2 className="mr-2 animate-spin"/> : <BookCheck className="mr-2" />}
                 Gerar Relatório Automático
             </Button>

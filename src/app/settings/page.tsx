@@ -21,160 +21,9 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 
 
-const ProfileManager = () => {
-  const { state, dispatch, activeProfile } = useAppContext();
-  const { profiles } = state;
-  const [newProfileName, setNewProfileName] = useState('');
-  
-  const [editingName, setEditingName] = useState('');
-  const [editingPin, setEditingPin] = useState('');
-
-  const { toast } = useToast();
-  const router = useRouter();
-
-  useEffect(() => {
-    if (activeProfile) {
-      setEditingName(activeProfile.name);
-      setEditingPin(activeProfile.pin);
-    }
-  }, [activeProfile]);
-
-
-  const handleAddProfile = () => {
-    if (newProfileName.trim() && !profiles.find(p => p.name.toLowerCase() === newProfileName.trim().toLowerCase())) {
-      dispatch({ type: 'ADD_PROFILE', payload: newProfileName.trim() });
-      toast({ title: `Perfil "${newProfileName.trim()}" criado!` });
-      setNewProfileName('');
-    } else {
-      toast({ title: 'Erro', description: 'Nome do perfil inválido ou já existe.', variant: 'destructive' });
-    }
-  };
-  
-  const handleDeleteProfile = (profileId: string, profileName: string) => {
-    if (profiles.length > 1) {
-      dispatch({ type: 'DELETE_PROFILE', payload: profileId });
-      toast({ title: `Perfil "${profileName}" excluído.`, variant: 'destructive' });
-      // Se o perfil excluído era o ativo, volta para a tela de seleção
-      if(state.activeProfileId === profileId) {
-        router.push('/');
-      }
-    } else {
-      toast({ title: 'Ação não permitida', description: 'Não é possível excluir o único perfil existente.', variant: 'destructive' });
-    }
-  }
-
-  const handleUpdateProfile = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!activeProfile) return;
-    if (editingName.trim() && editingPin.trim().length === 4 && /^\d+$/.test(editingPin)) {
-      dispatch({
-        type: 'UPDATE_PROFILE_DETAILS',
-        payload: {
-          profileId: activeProfile.id,
-          name: editingName.trim(),
-          pin: editingPin.trim(),
-        },
-      });
-      toast({ title: 'Perfil salvo!', description: 'As informações do perfil foram atualizadas.' });
-    } else {
-      toast({ title: 'Dados inválidos', description: 'Verifique se o nome não está vazio e o PIN tem 4 dígitos numéricos.', variant: 'destructive' });
-    }
-  };
-
-  if (!activeProfile) {
-    return (
-      <div className="text-center text-muted-foreground p-4 space-y-4">
-        <p>Para gerenciar os detalhes de um perfil, primeiro <Link href="/" className="text-primary underline">selecione um</Link>.</p>
-        <Card className="text-left p-4">
-          <Label className="font-bold">Criar Novo Perfil</Label>
-          <div className="flex items-center gap-2 mt-2">
-            <Input 
-              placeholder="Nome do novo perfil" 
-              value={newProfileName}
-              onChange={e => setNewProfileName(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && handleAddProfile()}
-            />
-            <Button onClick={handleAddProfile}><Plus className="mr-2 h-4 w-4"/>Adicionar</Button>
-          </div>
-        </Card>
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-6">
-      <form onSubmit={handleUpdateProfile} className="space-y-4">
-        <p className="text-sm text-muted-foreground">
-            Editando o perfil: <span className="font-bold text-primary">{activeProfile.name}</span>
-        </p>
-        <div className="space-y-2">
-          <Label htmlFor="profileName">Nome do Perfil</Label>
-          <Input 
-            id="profileName"
-            placeholder="Nome do perfil" 
-            value={editingName}
-            onChange={e => setEditingName(e.target.value)}
-          />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="profilePin">PIN de Acesso (4 dígitos)</Label>
-          <Input 
-            id="profilePin"
-            placeholder="1234" 
-            value={editingPin}
-            onChange={e => setEditingPin(e.target.value)}
-            maxLength={4}
-            type="password"
-            inputMode="numeric"
-          />
-        </div>
-
-        <div className="flex justify-between items-center">
-          <Button type="submit">Salvar Alterações</Button>
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button type="button" variant="destructive" disabled={profiles.length <= 1}>
-                <Trash2 className="mr-2 h-4 w-4"/>Excluir Perfil
-              </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Excluir Perfil?</AlertDialogTitle>
-                <AlertDialogDescription>
-                  Atenção: Esta ação não pode ser desfeita. Todos os dados do perfil "{activeProfile.name}" (dias, funções, metas) serão permanentemente excluídos.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                <AlertDialogAction onClick={() => handleDeleteProfile(activeProfile.id, activeProfile.name)}>
-                  Confirmar Exclusão
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-        </div>
-      </form>
-
-      <Card className="p-4">
-         <Label className="font-bold">Criar Novo Perfil</Label>
-        <div className="flex items-center gap-2 mt-2">
-          <Input 
-            placeholder="Nome do novo perfil" 
-            value={newProfileName}
-            onChange={e => setNewProfileName(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && handleAddProfile()}
-          />
-          <Button type="button" onClick={handleAddProfile}><Plus className="mr-2 h-4 w-4"/>Adicionar</Button>
-        </div>
-      </Card>
-    </div>
-  )
-}
-
-
 export default function SettingsPage() {
   const { toast } = useToast();
-  const { state, dispatch, activeProfile } = useAppContext();
+  const { state, dispatch } = useAppContext();
   
   const toggleTheme = () => {
     const newTheme = state.theme === 'dark' ? 'light' : 'dark';
@@ -191,7 +40,7 @@ export default function SettingsPage() {
           <CardTitle>Geral</CardTitle>
         </CardHeader>
         <CardContent>
-           <Accordion type="single" collapsible className="w-full" defaultValue="item-2">
+           <Accordion type="single" collapsible className="w-full" defaultValue="item-1">
             <AccordionItem value="item-1">
               <AccordionTrigger>
                 <div className="flex items-center gap-3">
@@ -211,11 +60,13 @@ export default function SettingsPage() {
             <AccordionItem value="item-2">
               <AccordionTrigger>
                  <div className="flex items-center gap-3">
-                    <Users /> Gerenciamento de Perfis {activeProfile && `- (${activeProfile.name})`}
+                    <Users /> Gerenciamento de Perfis
                 </div>
               </AccordionTrigger>
               <AccordionContent className="pt-4">
-                <ProfileManager />
+                 <p className="text-muted-foreground">
+                  A criação, edição e exclusão de perfis e senhas são funções do administrador. Acesse o <Link href="/admin" className="text-primary underline">Painel de Administrador</Link> para gerenciar os perfis.
+                </p>
               </AccordionContent>
             </AccordionItem>
             <AccordionItem value="item-3">
@@ -225,7 +76,7 @@ export default function SettingsPage() {
                 </div>
               </AccordionTrigger>
               <AccordionContent className="pt-4 text-muted-foreground">
-                 Em breve: Implementação da tela de login com PIN, gerenciamento de permissões de administrador e redefinição de senhas.
+                 A gestão de senhas e permissões é uma função do administrador.
               </AccordionContent>
             </AccordionItem>
             <AccordionItem value="item-4">
@@ -259,8 +110,7 @@ export default function SettingsPage() {
                 <ul className="list-disc pl-5">
                     <li>Use a aba <strong>Dashboard</strong> para gerenciar suas funções de produção diárias.</li>
                     <li>O <strong>Cronômetro</strong> é ideal para medições de tempo precisas, nos modos progressivo e regressivo.</li>
-                    <li>Acesse <strong>Relatórios</strong> para análises inteligentes e exportação de dados.</li>
-                    <li>Use as <strong>Sugestões Inteligentes</strong> (✨) para agilizar a criação de novas funções.</li>
+                    <li>Acesse <strong>Relatórios</strong> para análises automáticas e exportação de dados.</li>
                 </ul>
               </AccordionContent>
             </AccordionItem>
