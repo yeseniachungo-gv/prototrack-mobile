@@ -7,7 +7,7 @@ import Header from '@/components/Header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Plus, ChevronLeft, ChevronRight, Sparkles, Target, Edit, WifiOff } from 'lucide-react';
+import { Plus, ChevronLeft, ChevronRight, Sparkles, Target, Edit, WifiOff, Copy } from 'lucide-react';
 import { useAppContext } from '@/contexts/AppContext';
 import FunctionCard from '@/components/FunctionCard';
 import FunctionSheet from '@/components/FunctionSheet';
@@ -24,6 +24,72 @@ import { useToast } from '@/hooks/use-toast';
 import { Progress } from '@/components/ui/progress';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Label } from '@/components/ui/label';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from '@/components/ui/dialog';
+import { parseISO, format } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
+
+// --- Clone Day Dialog Component ---
+const CloneDayDialog = () => {
+    const { activeProfile, dispatch } = useAppContext();
+    const [selectedSourceDay, setSelectedSourceDay] = useState<string | null>(null);
+    const [isDialogOpen, setIsDialogOpen] = useState(false);
+    const { toast } = useToast();
+
+    if (!activeProfile) return null;
+    
+    const handleCloneDay = () => {
+        if (!selectedSourceDay) {
+            toast({ title: "Nenhum dia de origem selecionado.", variant: "destructive" });
+            return;
+        }
+        dispatch({ type: 'CLONE_DAY', payload: { sourceDayId: selectedSourceDay } });
+        toast({ title: "Dia clonado com sucesso!", description: "A estrutura do dia selecionado foi copiada para hoje." });
+        setIsDialogOpen(false);
+        setSelectedSourceDay(null);
+    }
+    
+    // Sort days descending for the selector
+    const sortedDays = [...activeProfile.days].sort((a, b) => parseISO(b.id).getTime() - parseISO(a.id).getTime());
+
+    return (
+        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+            <DialogTrigger asChild>
+                <Button size="icon" variant="outline" title="Clonar Estrutura de Outro Dia">
+                    <Copy className="h-4 w-4" />
+                </Button>
+            </DialogTrigger>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Clonar Estrutura de um Dia</DialogTitle>
+                    <DialogDescription>
+                        Isso substituirá as funções do dia atual pela estrutura de um dia anterior. Os dados de produção (peças, observações) não serão copiados.
+                    </DialogDescription>
+                </DialogHeader>
+                <div className="py-4 space-y-2">
+                    <Label htmlFor="source-day">Selecione o dia para clonar:</Label>
+                    <Select value={selectedSourceDay ?? ''} onValueChange={setSelectedSourceDay}>
+                        <SelectTrigger id="source-day">
+                            <SelectValue placeholder="Escolha um dia..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {sortedDays.map(day => (
+                                <SelectItem key={day.id} value={day.id}>
+                                    {format(parseISO(day.id), "eeee, dd 'de' MMMM", { locale: ptBR })}
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                </div>
+                <DialogFooter>
+                    <DialogClose asChild>
+                        <Button variant="ghost">Cancelar</Button>
+                    </DialogClose>
+                    <Button onClick={handleCloneDay} disabled={!selectedSourceDay}>Clonar para Hoje</Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    )
+}
 
 
 // Component for the day selection bar
@@ -73,6 +139,7 @@ const DaySelector = () => {
        <Button size="icon" variant="outline" onClick={goToNextDay} disabled={currentIndex >= activeProfile.days.length - 1}>
         <ChevronRight className="h-4 w-4" />
       </Button>
+      <CloneDayDialog />
       <Button size="icon" onClick={handleAddDay}><Plus className="h-4 w-4" /></Button>
     </div>
   );
