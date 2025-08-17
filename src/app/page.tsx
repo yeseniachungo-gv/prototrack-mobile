@@ -7,7 +7,7 @@ import { useAppContext } from '@/contexts/AppContext';
 import Header from '@/components/Header';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Plus, Sprout } from 'lucide-react';
+import { Plus, Sprout, Shield, Edit } from 'lucide-react';
 import Link from 'next/link';
 
 export default function ProfileSelectionPage() {
@@ -16,8 +16,15 @@ export default function ProfileSelectionPage() {
   const router = useRouter();
 
   const handleSelectProfile = (profileId: string) => {
+    // Futuramente, aqui podemos adicionar a lógica de pedir o PIN
     dispatch({ type: 'SET_ACTIVE_PROFILE', payload: profileId });
     router.push('/dashboard');
+  };
+
+  const handleEditProfile = (e: React.MouseEvent, profileId: string) => {
+    e.stopPropagation(); // Impede que o card seja clicado
+    dispatch({ type: 'SET_ACTIVE_PROFILE', payload: profileId });
+    router.push('/settings');
   };
 
   return (
@@ -28,9 +35,18 @@ export default function ProfileSelectionPage() {
         {profiles.map(profile => (
           <Card 
             key={profile.id} 
-            className="flex flex-col items-center justify-center p-4 text-center aspect-square cursor-pointer hover:bg-muted/50 transition-colors"
+            className="flex flex-col items-center justify-center p-4 text-center aspect-square cursor-pointer hover:bg-muted/50 transition-colors group relative"
             onClick={() => handleSelectProfile(profile.id)}
           >
+             <Button
+                size="icon"
+                variant="secondary"
+                className="absolute top-2 right-2 h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
+                onClick={(e) => handleEditProfile(e, profile.id)}
+              >
+                <Edit className="h-4 w-4" />
+              </Button>
+
             <CardContent className="flex flex-col items-center justify-center flex-1 p-2">
                 <Sprout className="w-12 h-12 text-primary mb-2" />
                 <p className="font-bold text-lg">{profile.name}</p>
@@ -46,6 +62,15 @@ export default function ProfileSelectionPage() {
             <CardContent className="flex flex-col items-center justify-center flex-1 p-2">
                 <Plus className="w-12 h-12" />
                 <p className="font-bold text-lg mt-2">Novo Perfil</p>
+            </CardContent>
+          </Card>
+        </Link>
+
+         <Link href="/admin" passHref>
+          <Card className="flex flex-col items-center justify-center p-4 text-center aspect-square cursor-pointer border-dashed bg-secondary/50 hover:border-primary hover:text-primary transition-colors">
+            <CardContent className="flex flex-col items-center justify-center flex-1 p-2">
+                <Shield className="w-12 h-12" />
+                <p className="font-bold text-lg mt-2">Admin</p>
             </CardContent>
           </Card>
         </Link>

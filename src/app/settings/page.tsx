@@ -1,13 +1,13 @@
 
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Header from '@/components/Header';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { useAppContext } from '@/contexts/AppContext';
-import { Moon, Sun, Palette, Bell, HelpCircle, Shield, Users, Plus, Trash2 } from 'lucide-react';
+import { Moon, Sun, Palette, Bell, HelpCircle, Shield, Users, Plus, Trash2, KeyRound } from 'lucide-react';
 import {
   Accordion,
   AccordionContent,
@@ -15,14 +15,29 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { useRouter } from 'next/navigation';
 
 
 const ProfileManager = () => {
-  const { state, dispatch } = useAppContext();
+  const { state, dispatch, activeProfile } = useAppContext();
   const { profiles, activeProfileId } = state;
   const [newProfileName, setNewProfileName] = useState('');
+  
+  const [editingName, setEditingName] = useState('');
+  const [editingPin, setEditingPin] = useState('');
+
   const { toast } = useToast();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (activeProfile) {
+      setEditingName(activeProfile.name);
+      setEditingPin(activeProfile.pin);
+    }
+  }, [activeProfile]);
+
 
   const handleAddProfile = () => {
     if (newProfileName.trim() && !profiles.find(p => p.name.toLowerCase() === newProfileName.trim().toLowerCase())) {
@@ -33,70 +48,43 @@ const ProfileManager = () => {
       toast({ title: 'Erro', description: 'Nome do perfil inválido ou já existe.', variant: 'destructive' });
     }
   };
-
-  const handleSelectProfile = (profileId: string) => {
-    dispatch({ type: 'SET_ACTIVE_PROFILE', payload: profileId });
-    const profile = profiles.find(p => p.id === profileId);
-    toast({ title: `Perfil "${profile?.name}" selecionado.` });
-  };
   
   const handleDeleteProfile = (profileId: string, profileName: string) => {
     if (profiles.length > 1) {
       dispatch({ type: 'DELETE_PROFILE', payload: profileId });
       toast({ title: `Perfil "${profileName}" excluído.`, variant: 'destructive' });
+      // Se o perfil excluído era o ativo, volta para a tela de seleção
+      if(activeProfileId === profileId) {
+        router.push('/');
+      }
     } else {
       toast({ title: 'Ação não permitida', description: 'Não é possível excluir o único perfil existente.', variant: 'destructive' });
     }
   }
 
-  return (
-    <div className="space-y-4">
-      <div className="space-y-2">
-        <p className="font-medium">Perfis Disponíveis</p>
-        <ul className="space-y-2">
-          {profiles.map(profile => (
-            <li key={profile.id} className="flex items-center justify-between p-2 rounded-lg bg-muted/50">
-              <span className={profile.id === activeProfileId ? 'font-bold text-primary' : ''}>
-                {profile.name}
-              </span>
-              <div className="flex items-center gap-2">
-                 <Button 
-                    size="sm" 
-                    variant={profile.id === activeProfileId ? "default" : "outline"}
-                    onClick={() => handleSelectProfile(profile.id)}
-                    disabled={profile.id === activeProfileId}
-                  >
-                    {profile.id === activeProfileId ? 'Ativo' : 'Selecionar'}
-                </Button>
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <Button size="sm" variant="destructive" className="h-9 w-9 p-0" disabled={profiles.length <= 1}>
-                      <Trash2 className="h-4 w-4"/>
-                    </Button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>Excluir Perfil?</AlertDialogTitle>
-                      <AlertDialogDescription>
-                        Atenção: Esta ação não pode ser desfeita. Todos os dados do perfil "{profile.name}" (dias, funções, metas) serão permanentemente excluídos.
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                      <AlertDialogAction onClick={() => handleDeleteProfile(profile.id, profile.name)}>
-                        Confirmar Exclusão
-                      </AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
-              </div>
-            </li>
-          ))}
-        </ul>
-      </div>
-      <div className="space-y-2">
-        <p className="font-medium">Adicionar Novo Perfil</p>
-        <div className="flex items-center gap-2">
+  const handleUpdateProfile = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!activeProfile) return;
+    if (editingName.trim() && editingPin.trim().length === 4 && /^\d+$/.test(editingPin)) {
+      dispatch({
+        type: 'UPDATE_PROFILE_DETAILS',
+        payload: {
+          profileId: activeProfile.id,
+          name: editingName.trim(),
+          pin: editingPin.trim(),
+        },
+      });
+      toast({ title: 'Perfil salvo!', description: 'As informações do perfil foram atualizadas.' });
+    } else {
+      toast({ title: 'Dados inválidos', description: 'Verifique se o nome não está vazio e o PIN tem 4 dígitos numéricos.', variant: 'destructive' });
+    }
+  };
+
+  if (!activeProfile) {
+    return (
+      <div className="text-center text-muted-foreground p-4">
+        <p>Para gerenciar um perfil, primeiro selecione um na <a href="/" className="text-primary underline">tela de seleção</a> ou crie um novo abaixo.</p>
+        <div className="flex items-center gap-2 mt-4">
           <Input 
             placeholder="Nome do novo perfil" 
             value={newProfileName}
@@ -106,14 +94,76 @@ const ProfileManager = () => {
           <Button onClick={handleAddProfile}><Plus className="mr-2 h-4 w-4"/>Adicionar</Button>
         </div>
       </div>
-    </div>
+    );
+  }
+
+  return (
+    <form onSubmit={handleUpdateProfile} className="space-y-4">
+      <div className="space-y-2">
+        <Label htmlFor="profileName">Nome do Perfil</Label>
+        <Input 
+          id="profileName"
+          placeholder="Nome do perfil" 
+          value={editingName}
+          onChange={e => setEditingName(e.target.value)}
+        />
+      </div>
+       <div className="space-y-2">
+        <Label htmlFor="profilePin">PIN de Acesso (4 dígitos)</Label>
+        <Input 
+          id="profilePin"
+          placeholder="1234" 
+          value={editingPin}
+          onChange={e => setEditingPin(e.target.value)}
+          maxLength={4}
+        />
+      </div>
+
+       <div className="flex justify-between items-center">
+        <Button type="submit">Salvar Alterações</Button>
+        <AlertDialog>
+          <AlertDialogTrigger asChild>
+            <Button type="button" variant="destructive" disabled={profiles.length <= 1}>
+              <Trash2 className="mr-2 h-4 w-4"/>Excluir Perfil
+            </Button>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Excluir Perfil?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Atenção: Esta ação não pode ser desfeita. Todos os dados do perfil "{activeProfile.name}" (dias, funções, metas) serão permanentemente excluídos.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+              <AlertDialogAction onClick={() => handleDeleteProfile(activeProfile.id, activeProfile.name)}>
+                Confirmar Exclusão
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      </div>
+
+      <div className="space-y-2 pt-4">
+         <Label>Criar Novo Perfil</Label>
+        <div className="flex items-center gap-2">
+          <Input 
+            placeholder="Nome do novo perfil" 
+            value={newProfileName}
+            onChange={e => setNewProfileName(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && handleAddProfile()}
+          />
+          <Button type="button" onClick={handleAddProfile}><Plus className="mr-2 h-4 w-4"/>Adicionar</Button>
+        </div>
+      </div>
+    </form>
   )
 }
 
 
 export default function SettingsPage() {
   const { toast } = useToast();
-  const { state, dispatch } = useAppContext();
+  const { state, dispatch, activeProfile } = useAppContext();
   
   const toggleTheme = () => {
     const newTheme = state.theme === 'dark' ? 'light' : 'dark';
@@ -150,7 +200,7 @@ export default function SettingsPage() {
             <AccordionItem value="item-2">
               <AccordionTrigger>
                  <div className="flex items-center gap-3">
-                    <Users /> Gerenciamento de Perfis
+                    <Users /> Gerenciamento de Perfis {activeProfile && `- (${activeProfile.name})`}
                 </div>
               </AccordionTrigger>
               <AccordionContent className="pt-4">
@@ -160,7 +210,7 @@ export default function SettingsPage() {
             <AccordionItem value="item-3">
               <AccordionTrigger>
                  <div className="flex items-center gap-3">
-                    <Shield /> Acesso e Segurança
+                    <KeyRound /> Acesso e Segurança
                 </div>
               </AccordionTrigger>
               <AccordionContent className="pt-4 text-muted-foreground">

@@ -29,7 +29,8 @@ type Action =
   | { type: 'UPDATE_DAILY_GOAL', payload: { goal: number; functionId: string | null } }
   | { type: 'ADD_PROFILE'; payload: string }
   | { type: 'DELETE_PROFILE'; payload: string }
-  | { type: 'SET_ACTIVE_PROFILE'; payload: string | null };
+  | { type: 'SET_ACTIVE_PROFILE'; payload: string | null }
+  | { type: 'UPDATE_PROFILE_DETAILS', payload: { profileId: string; name: string; pin: string } };
 
 
 const APP_STATE_KEY = 'prototrack-state-v3';
@@ -42,6 +43,7 @@ const createDefaultProfile = (name: string): Profile => {
     return {
         id: uuidv4(),
         name,
+        pin: "1234",
         days: [{
             id: today,
             functions: [{
@@ -131,6 +133,14 @@ const appReducer = (state: AppState, action: Action): AppState => {
               draft.activeProfileId = draft.profiles[0].id;
             }
           }
+        }
+        return;
+      }
+       case 'UPDATE_PROFILE_DETAILS': {
+        const profile = draft.profiles.find(p => p.id === action.payload.profileId);
+        if (profile) {
+          profile.name = action.payload.name;
+          profile.pin = action.payload.pin;
         }
         return;
       }
@@ -377,6 +387,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (savedStateString) {
         const savedState = JSON.parse(savedStateString);
         
+        // Garantir que a estrutura de perfis exista e tenha PIN
         if (!savedState.profiles) {
             console.log("Migrating old state to new profile structure.");
             const defaultProfile = createDefaultProfile('Perfil Padrão');
@@ -385,14 +396,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             defaultProfile.dailyGoal = savedState.dailyGoal || getInitialState().profiles[0].dailyGoal;
             
             savedState.profiles = [defaultProfile];
-            // No activeProfileId set initially on purpose, so user is taken to selection screen
             savedState.activeProfileId = null;
             delete (savedState as any).days;
             delete (savedState as any).activeDayId;
             delete (savedState as any).dailyGoal;
         }
+
+        // Garantir que todos os perfis tenham um PIN
+         savedState.profiles.forEach((p: Profile) => {
+          if (!p.pin) {
+            p.pin = '1234'; // PIN padrão para perfis antigos
+          }
+        });
         
-        // Ensure activeProfileId from old sessions is cleared for the new login flow
         if (savedState.activeProfileId) {
           savedState.activeProfileId = null;
         }

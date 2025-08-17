@@ -47,7 +47,8 @@ export interface DailyGoal {
 
 export interface Profile {
   id: string;
-  name: string;
+  name:string;
+  pin: string; // 4-digit PIN
   days: Day[];
   activeDayId: string | null;
   dailyGoal: DailyGoal;
