@@ -29,7 +29,7 @@ type Action =
   | { type: 'UPDATE_DAILY_GOAL', payload: { goal: number; functionId: string | null } }
   | { type: 'ADD_PROFILE'; payload: string }
   | { type: 'DELETE_PROFILE'; payload: string }
-  | { type: 'SET_ACTIVE_PROFILE'; payload: string };
+  | { type: 'SET_ACTIVE_PROFILE'; payload: string | null };
 
 
 const APP_STATE_KEY = 'prototrack-state-v3';
@@ -65,7 +65,7 @@ const createDefaultProfile = (name: string): Profile => {
 function getInitialState(): AppState {
   return {
     profiles: [createDefaultProfile('Perfil Padrão')],
-    activeProfileId: null, // Será definido para o primeiro perfil no carregamento
+    activeProfileId: null, 
     theme: 'dark',
     stopwatch: {
         mode: 'countdown',
@@ -97,7 +97,6 @@ const appReducer = (state: AppState, action: Action): AppState => {
         const localStopwatchHistory = draft.stopwatch.history;
         const restoredState = action.payload;
         
-        // Garante que o estado antigo (v2) seja migrado para o novo (v3 com perfis)
         if (!restoredState.profiles) {
           const defaultProfile = createDefaultProfile('Perfil Restaurado');
           defaultProfile.days = restoredState.days || [];
@@ -378,7 +377,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (savedStateString) {
         const savedState = JSON.parse(savedStateString);
         
-        // Garante que o estado antigo (v2) seja migrado para o novo (v3 com perfis)
         if (!savedState.profiles) {
             console.log("Migrating old state to new profile structure.");
             const defaultProfile = createDefaultProfile('Perfil Padrão');
@@ -387,14 +385,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             defaultProfile.dailyGoal = savedState.dailyGoal || getInitialState().profiles[0].dailyGoal;
             
             savedState.profiles = [defaultProfile];
-            savedState.activeProfileId = defaultProfile.id;
+            // No activeProfileId set initially on purpose, so user is taken to selection screen
+            savedState.activeProfileId = null;
             delete (savedState as any).days;
             delete (savedState as any).activeDayId;
             delete (savedState as any).dailyGoal;
         }
         
-        if (!savedState.activeProfileId && savedState.profiles.length > 0) {
-            savedState.activeProfileId = savedState.profiles[0].id;
+        // Ensure activeProfileId from old sessions is cleared for the new login flow
+        if (savedState.activeProfileId) {
+          savedState.activeProfileId = null;
         }
 
         const initialStopwatch = getInitialState().stopwatch;
@@ -413,9 +413,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     } catch (e) {
       console.error("Falha ao carregar o estado, usando o estado inicial.", e);
     }
-    const initialState = getInitialState();
-    initialState.activeProfileId = initialState.profiles[0]?.id;
-    return initialState;
+    return getInitialState();
   });
   
   const [isInitialized, setIsInitialized] = React.useState(false);

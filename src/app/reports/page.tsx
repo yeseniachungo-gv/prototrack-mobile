@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { useAppContext } from '@/contexts/AppContext';
 import { useToast } from '@/hooks/use-toast';
 import { Download, Upload, FileText, FileX2, Printer, Loader2, BookCheck } from 'lucide-react';
-import type { Day, FunctionEntry } from '@/lib/types';
+import type { Day, FunctionEntry, Profile } from '@/lib/types';
 import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { generateDailyReport, GenerateDailyReportOutput } from '@/ai/flows/generate-daily-report';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
@@ -200,9 +200,10 @@ export default function ReportsPage() {
         
         const restoredState = JSON.parse(text);
         
-        if ((restoredState.days && restoredState.activeDayId) || restoredState.profiles) {
+        // Validação básica do arquivo de backup
+        if (restoredState.profiles && Array.isArray(restoredState.profiles)) {
           dispatch({ type: 'SET_STATE', payload: restoredState });
-          toast({ title: 'Backup Restaurado!', description: 'Seus dados foram carregados com sucesso.' });
+          toast({ title: 'Backup Restaurado!', description: 'Seus dados foram carregados. Selecione um perfil para continuar.' });
         } else {
           throw new Error('Arquivo de backup inválido ou corrompido.');
         }
@@ -296,7 +297,7 @@ export default function ReportsPage() {
         <CardHeader>
           <CardTitle>Backup & Restauração</CardTitle>
           <CardDescription>
-            Salve todos os dados do perfil atual em um arquivo ou restaure a partir de um backup.
+            Salve todos os dados da aplicação em um arquivo ou restaure a partir de um backup.
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-wrap gap-2">
