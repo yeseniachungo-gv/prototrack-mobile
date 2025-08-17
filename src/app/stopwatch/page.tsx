@@ -279,7 +279,9 @@ export default function StopwatchPage() {
                             <TableCell className="text-center">{entry.pieces}</TableCell>
                             <TableCell className="text-center font-mono">{formatTime(entry.duration)}</TableCell>
                             <TableCell className="text-center font-mono">{entry.averagePerHour.toFixed(0)}</TableCell>
-                            <TableCell className="text-right font-mono">{entry.adjustedAveragePerHour.toFixed(0)}</TableCell>
+                            <TableCell className="text-right font-mono">
+                                {(entry.adjustedAveragePerHour ?? 0).toFixed(0)}
+                            </TableCell>
                         </TableRow>
                     ))}
                 </TableBody>
