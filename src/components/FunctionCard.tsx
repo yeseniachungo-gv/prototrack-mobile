@@ -20,7 +20,12 @@ const FunctionCard = ({ func, onOpenSheet }: FunctionCardProps) => {
   const { toast } = useToast();
 
   const totalPieces = Object.values(func.pieces).reduce((sum, pieces) => sum + pieces, 0);
-  const pph = func.hours.length > 0 ? totalPieces / func.hours.length : 0;
+
+  // Correct calculation for PPH:
+  // Count only the number of worker-hour slots that actually have production > 0.
+  // This prevents diluting the average with hours where no one worked.
+  const hoursWithProduction = Object.values(func.pieces).filter(p => p > 0).length;
+  const pph = hoursWithProduction > 0 ? totalPieces / hoursWithProduction : 0;
   
   // Calcular o total de minutos parados
   const totalMinutesStopped = Object.values(func.observations)
