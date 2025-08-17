@@ -1,13 +1,11 @@
 "use client";
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Observation } from '@/lib/types';
 import { useAppContext } from '@/contexts/AppContext';
 import { useToast } from '@/hooks/use-toast';
+import { ScrollArea } from './ui/scroll-area';
 
 interface FunctionSheetProps {
   dayId: string;
@@ -16,8 +14,6 @@ interface FunctionSheetProps {
   onClose: () => void;
 }
 
-const OBSERVATION_REASONS = ['Troca de função', 'Treinamento', 'Manutenção de máquina', 'Pausa prolongada', 'Outro'];
-
 export default function FunctionSheet({ dayId, funcId, isOpen, onClose }: FunctionSheetProps) {
   const { state, dispatch } = useAppContext();
   const { toast } = useToast();
@@ -25,136 +21,190 @@ export default function FunctionSheet({ dayId, funcId, isOpen, onClose }: Functi
   const day = state.days.find(d => d.id === dayId);
   const func = day?.functions.find(f => f.id === funcId);
 
-  const handleCellChange = (worker: string, hour: string, field: keyof Observation, value: string | number) => {
+  const handlePieceChange = (workerIndex: number, hourIndex: number, value: string) => {
     if (!day || !func) return;
 
-    const existingObs = func.observations.find(obs => obs.hour === hour && obs.worker === worker);
+    const updatedWorkers = [...func.workers];
+    const updatedObservations = [...func.observations];
     
-    const updatedObs: Observation = {
-        id: existingObs?.id || crypto.randomUUID(),
-        timestamp: existingObs?.timestamp || new Date().getTime(),
-        type: existingObs?.type || 'note',
-        worker,
-        hour,
-        pieces: existingObs?.pieces || 0,
-        reason: existingObs?.reason || '',
-        detail: existingObs?.detail || '',
-        duration: existingObs?.duration || 0,
-        ...{ [field]: value === 'none' ? '' : value }
-    };
+    const workerName = updatedWorkers[workerIndex];
+    const hour = func.hours[hourIndex];
+
+    let obsIndex = updatedObservations.findIndex(o => o.worker === workerName && o.hour === hour);
     
-    dispatch({ type: 'UPDATE_OBSERVATION', payload: { dayId: day.id, functionId: func.id, observation: updatedObs } });
+    if (obsIndex === -1) {
+      updatedObservations.push({
+        id: crypto.randomUUID(),
+        timestamp: new Date().getTime(),
+        type: 'note',
+        worker: workerName,
+        hour: hour,
+        pieces: parseInt(value) || 0,
+        reason: '',
+        detail: '',
+        duration: 0,
+      });
+    } else {
+      updatedObservations[obsIndex] = {
+        ...updatedObservations[obsIndex],
+        pieces: parseInt(value) || 0,
+      };
+    }
+    
+    const updatedFunction = { ...func, observations: updatedObservations };
+    dispatch({ type: 'UPDATE_FUNCTION', payload: { dayId: day.id, functionData: updatedFunction }});
+  };
+
+  const getPiecesForCell = (workerName: string, hour: string): number => {
+    return func?.observations.find(obs => obs.worker === workerName && obs.hour === hour)?.pieces || 0;
+  };
+
+  const handleWorkerNameChange = (workerIndex: number, newName: string) => {
+    if (!day || !func || !newName.trim()) return;
+
+    const oldName = func.workers[workerIndex];
+    const updatedWorkers = [...func.workers];
+    updatedWorkers[workerIndex] = newName.trim();
+
+    // Update observations to reflect the new worker name
+    const updatedObservations = func.observations.map(obs => {
+        if (obs.worker === oldName) {
+            return { ...obs, worker: newName.trim() };
+        }
+        return obs;
+    });
+
+    const updatedFunction = { ...func, workers: updatedWorkers, observations: updatedObservations };
+    dispatch({ type: 'UPDATE_FUNCTION', payload: { dayId: day.id, functionData: updatedFunction } });
   };
   
-  const handleEditWorkers = () => {
+  const handleAddWorker = () => {
     if (!day || !func) return;
-    const newWorkersStr = prompt("Edite os trabalhadores (um por linha):", func.workers.join('\\n'));
-    if (newWorkersStr) {
-      const newWorkers = newWorkersStr.split('\\n').map(w => w.trim()).filter(Boolean);
-      if (newWorkers.length > 0) {
-        const updatedFunction = { ...func, workers: newWorkers };
-        dispatch({ type: 'UPDATE_FUNCTION', payload: { dayId: day.id, functionData: updatedFunction }});
-        toast({ title: "Trabalhadores atualizados." });
-      } else {
-        alert("É necessário pelo menos um trabalhador.");
+    const newWorkerName = `Trabalhador ${func.workers.length + 1}`;
+    const updatedFunction = { ...func, workers: [...func.workers, newWorkerName] };
+    dispatch({ type: 'UPDATE_FUNCTION', payload: { dayId: day.id, functionData: updatedFunction }});
+  };
+
+  const handleDeleteWorker = (workerIndex: number) => {
+    if (!day || !func || func.workers.length <= 1) {
+      toast({ title: "Deve haver pelo menos um trabalhador.", variant: 'destructive' });
+      return;
+    };
+     if (!confirm(`Tem certeza que deseja remover ${func.workers[workerIndex]}?`)) return;
+
+    const workerNameToDelete = func.workers[workerIndex];
+    const updatedWorkers = func.workers.filter((_, index) => index !== workerIndex);
+    const updatedObservations = func.observations.filter(obs => obs.worker !== workerNameToDelete);
+
+    const updatedFunction = { ...func, workers: updatedWorkers, observations: updatedObservations };
+    dispatch({ type: 'UPDATE_FUNCTION', payload: { dayId: day.id, functionData: updatedFunction }});
+  };
+  
+  const handleAddHour = (manual = false) => {
+    if (!day || !func) return;
+    let nextHour: string | null = null;
+    if (manual) {
+      nextHour = prompt("Nova hora (HH:MM):", "18:00");
+      if (!nextHour || !/^\d{2}:\d{2}$/.test(nextHour)) {
+        if(nextHour) toast({ title: "Formato de hora inválido.", variant: 'destructive'});
+        return;
       }
+    } else {
+      const lastHour = func.hours.length > 0 ? func.hours[func.hours.length - 1] : '07:00';
+      const [h] = lastHour.split(':').map(Number);
+      nextHour = `${String(h + 1).padStart(2, '0')}:00`;
     }
+    
+    if (func.hours.includes(nextHour)) {
+      toast({ title: "Esta hora já existe.", variant: 'destructive'});
+      return;
+    }
+
+    const updatedHours = [...func.hours, nextHour].sort();
+    const updatedFunction = { ...func, hours: updatedHours };
+    dispatch({ type: 'UPDATE_FUNCTION', payload: { dayId: day.id, functionData: updatedFunction } });
   };
 
-  const handleAddHour = () => {
-    if (!day || !func) return;
-    const lastHour = func.hours.length > 0 ? func.hours[func.hours.length - 1] : '07:00';
-    const [h] = lastHour.split(':').map(Number);
-    const nextHour = `${String(h + 1).padStart(2, '0')}:00`;
-    if (!func.hours.includes(nextHour)) {
-      const updatedFunction = { ...func, hours: [...func.hours, nextHour] };
-      dispatch({ type: 'UPDATE_FUNCTION', payload: { dayId: day.id, functionData: updatedFunction }});
-    }
-  }
-
-  const getCellData = (worker: string, hour: string) => {
-    return func?.observations.find(obs => obs.worker === worker && obs.hour === hour);
+  const handleClearSheet = () => {
+    if (!day || !func || !confirm("Zerar todos os valores desta planilha?")) return;
+    const updatedObservations = func.observations.map(obs => ({ ...obs, pieces: 0 }));
+    const updatedFunction = { ...func, observations: updatedObservations };
+    dispatch({ type: 'UPDATE_FUNCTION', payload: { dayId: day.id, functionData: updatedFunction }});
+    toast({ title: "Planilha zerada." });
   };
+
+  const hourlyTotals = useMemo(() => {
+    if (!func) return [];
+    return func.hours.map(hour => 
+      func.workers.reduce((total, worker) => total + (getPiecesForCell(worker, hour) || 0), 0)
+    );
+  }, [func]);
 
   if (!func || !day) return null;
   
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col">
-        <DialogHeader>
-          <DialogTitle>Planilha — {func.name}</DialogTitle>
+      <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col p-2 sm:p-4">
+        <DialogHeader className="p-2 sm:p-0">
+          <DialogTitle>Planilha — {day.name} — {func.name}</DialogTitle>
           <div className="flex flex-wrap gap-2 pt-4">
-            <Button onClick={handleAddHour}>+ Hora</Button>
-            <Button onClick={handleEditWorkers}>Trabalhadores</Button>
+            <Button size="sm" onClick={handleAddWorker}>+ Trabalhador</Button>
+            <Button size="sm" onClick={() => handleAddHour(false)}>+ Próx. Hora</Button>
+            <Button size="sm" onClick={() => handleAddHour(true)}>+ Hora Manual</Button>
+            <Button size="sm" variant="outline" onClick={handleClearSheet}>Zerar Valores</Button>
+            <Button size="sm" variant="destructive" onClick={onClose} className="ml-auto">Fechar</Button>
           </div>
         </DialogHeader>
-        <div className="flex-1 overflow-y-auto">
-          <div className="relative">
+        <ScrollArea className="flex-1 w-full">
+          <div className="relative p-1">
             <table className="w-full border-collapse">
               <thead className="sticky top-0 bg-card z-10">
                 <tr>
-                  <th className="p-2 border font-bold min-w-[100px]">Hora</th>
-                  {func.workers.map(worker => (
-                    <th key={worker} className="p-2 border font-bold">{worker}</th>
+                  <th className="p-2 border font-bold min-w-[170px] text-left">Trabalhador</th>
+                  {func.hours.map(hour => (
+                    <th key={hour} className="p-2 border font-bold min-w-[80px]">{hour}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
-                {func.hours.map(hour => (
-                  <tr key={hour}>
-                    <td className="p-2 border font-bold">{hour}</td>
-                    {func.workers.map(worker => {
-                      const cellData = getCellData(worker, hour);
-                      const hasObs = cellData?.reason || cellData?.detail;
-                      return (
-                        <td key={worker} className="p-2 border align-top">
-                          <div className="space-y-2">
-                             <div className="p-2 rounded-md border bg-background/50">
-                                <Label>Peças</Label>
-                                <Input
-                                  type="number"
-                                  value={cellData?.pieces || 0}
-                                  onChange={(e) => handleCellChange(worker, hour, 'pieces', parseInt(e.target.value) || 0)}
-                                  className="w-full"
-                                />
-                             </div>
-                             <div className="p-2 rounded-md border bg-background/50">
-                                <Label className="flex items-center gap-2">
-                                  Observação {hasObs && <span className="text-primary">•</span>}
-                                </Label>
-                                <div className="space-y-1 mt-1">
-                                    <Select
-                                        value={cellData?.reason || 'none'}
-                                        onValueChange={(value) => handleCellChange(worker, hour, 'reason', value)}
-                                    >
-                                        <SelectTrigger>
-                                            <SelectValue placeholder="Motivo" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="none">—</SelectItem>
-                                            {OBSERVATION_REASONS.map(reason => (
-                                                <SelectItem key={reason} value={reason}>{reason}</SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-                                    <Input
-                                        placeholder="Detalhe (opcional)"
-                                        value={cellData?.detail || ''}
-                                        onChange={(e) => handleCellChange(worker, hour, 'detail', e.target.value)}
-                                        maxLength={140}
-                                    />
-                                </div>
-                             </div>
-                          </div>
-                        </td>
-                      );
-                    })}
+                {func.workers.map((worker, workerIndex) => (
+                  <tr key={workerIndex}>
+                    <td className="p-1 border align-middle">
+                      <div className="flex items-center gap-1">
+                        <Input
+                          value={worker}
+                          onChange={(e) => handleWorkerNameChange(workerIndex, e.target.value)}
+                          className="font-bold flex-1"
+                          aria-label={`Nome do trabalhador ${workerIndex + 1}`}
+                        />
+                         <Button variant="ghost" size="icon" className="w-7 h-7" onClick={() => handleDeleteWorker(workerIndex)}>
+                            <span className="text-red-500 text-xl">×</span>
+                        </Button>
+                      </div>
+                    </td>
+                    {func.hours.map((hour, hourIndex) => (
+                       <td key={hourIndex} className="p-1 border align-middle">
+                         <Input
+                           type="number"
+                           value={getPiecesForCell(worker, hour)}
+                           onChange={(e) => handlePieceChange(workerIndex, hourIndex, e.target.value)}
+                           className="w-full text-center"
+                           aria-label={`Peças para ${worker} às ${hour}`}
+                         />
+                       </td>
+                    ))}
                   </tr>
                 ))}
+                <tr className="bg-muted">
+                    <td className="p-2 border font-bold text-left">Total/hora</td>
+                    {hourlyTotals.map((total, index) => (
+                        <td key={index} className="p-2 border font-bold text-center">{total}</td>
+                    ))}
+                </tr>
               </tbody>
             </table>
           </div>
-        </div>
+        </ScrollArea>
       </DialogContent>
     </Dialog>
   );

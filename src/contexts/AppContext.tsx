@@ -21,6 +21,14 @@ type Action =
 
 const APP_STATE_KEY = 'prototrack-state';
 
+const makeHourRange = (start: number, end: number) => {
+  const hours = [];
+  for(let h=start; h<end; h++){
+    hours.push(String(h).padStart(2,'0') + ':00');
+  }
+  return hours;
+};
+
 function getInitialState(): AppState {
   if (typeof window !== 'undefined') {
     const savedState = localStorage.getItem(APP_STATE_KEY);
@@ -35,13 +43,6 @@ function getInitialState(): AppState {
 
   // Seed data if no saved state
   const today = new Date().toISOString().split('T')[0];
-  const makeHourRange = (start: number, end: number) => {
-    const hours = [];
-    for(let h=start; h<end; h++){
-      hours.push(String(h).padStart(2,'0') + ':00');
-    }
-    return hours;
-  };
   
   return {
     days: [{
@@ -53,7 +54,7 @@ function getInitialState(): AppState {
         name: 'Costura',
         description: '',
         workers: ['Maria', 'João'],
-        hours: makeHourRange(8, 12),
+        hours: makeHourRange(8, 18),
         observations: [],
         checklists: [],
       },
@@ -62,7 +63,7 @@ function getInitialState(): AppState {
         name: 'Embalagem',
         description: '',
         workers: ['Ana', 'Carlos'],
-        hours: makeHourRange(8, 12),
+        hours: makeHourRange(8, 18),
         observations: [],
         checklists: [],
       }],
@@ -112,8 +113,8 @@ const appReducer = (state: AppState, action: Action): AppState => {
                     id: crypto.randomUUID(),
                     name: action.payload.name,
                     description: '',
-                    workers: ['Operador 1'],
-                    hours: ['08:00', '09:00', '10:00', '11:00'],
+                    workers: ['Operador 1', 'Operador 2', 'Operador 3'],
+                    hours: makeHourRange(8, 18), // Default 8:00 to 17:00
                     observations: [],
                     checklists: [],
                 });
@@ -148,7 +149,10 @@ const appReducer = (state: AppState, action: Action): AppState => {
             if (func) {
               const obsIndex = func.observations.findIndex(o => o.id === observation.id);
               if (obsIndex !== -1) {
-                func.observations[obsIndex] = observation;
+                // Ensure values are numbers
+                const pieces = Number(observation.pieces) || 0;
+                const duration = Number(observation.duration) || 0;
+                func.observations[obsIndex] = {...observation, pieces, duration};
               } else {
                 func.observations.push(observation);
               }
