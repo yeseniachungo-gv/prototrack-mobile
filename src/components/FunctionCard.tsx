@@ -11,8 +11,8 @@ interface FunctionCardProps {
 
 const FunctionCard = ({ func, onOpenSheet }: FunctionCardProps) => {
 
-  const totalPieces = 0; // Placeholder
-  const pph = 0; // Placeholder
+  const totalPieces = Object.values(func.pieces).reduce((sum, pieces) => sum + pieces, 0);
+  const pph = func.hours.length > 0 ? totalPieces / func.hours.length : 0;
 
   return (
     <Card>
@@ -21,7 +21,7 @@ const FunctionCard = ({ func, onOpenSheet }: FunctionCardProps) => {
           <div className="flex-1">
             <h3 className="font-bold text-lg">{func.name}</h3>
             <p className="text-muted-foreground text-sm mt-1">
-              {pph} p/h • dia: {totalPieces}
+              {pph.toFixed(1)} p/h • dia: {totalPieces}
             </p>
           </div>
           <div className="flex flex-wrap gap-2 justify-end">

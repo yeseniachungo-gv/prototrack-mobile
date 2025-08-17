@@ -8,6 +8,34 @@ import { useAppContext } from '@/contexts/AppContext';
 import { useToast } from '@/hooks/use-toast';
 import { Download, Upload, FileText, FileX2, Printer } from 'lucide-react';
 import type { Day, FunctionEntry } from '@/lib/types';
+import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+
+
+const ProductionChart = ({ data }: { data: FunctionEntry[] }) => {
+  const chartData = data.map(func => ({
+    name: func.name.length > 15 ? `${func.name.substring(0, 12)}...` : func.name,
+    peças: Object.values(func.pieces).reduce((sum, p) => sum + p, 0)
+  }));
+  
+  return (
+     <ResponsiveContainer width="100%" height={300}>
+        <BarChart data={chartData} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
+          <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+          <XAxis dataKey="name" stroke="hsl(var(--muted-foreground))" fontSize={12} />
+          <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12}/>
+          <Tooltip 
+             contentStyle={{
+                backgroundColor: 'hsl(var(--card))',
+                borderColor: 'hsl(var(--border))',
+                color: 'hsl(var(--card-foreground))'
+             }}
+          />
+          <Legend wrapperStyle={{fontSize: "14px"}}/>
+          <Bar dataKey="peças" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+        </BarChart>
+      </ResponsiveContainer>
+  )
+}
 
 
 export default function ReportsPage() {
@@ -150,6 +178,24 @@ export default function ReportsPage() {
             <Button variant="secondary" disabled><Printer className="mr-2"/> Imprimir</Button>
         </CardContent>
       </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Relatórios Rápidos</CardTitle>
+           <CardDescription>
+            Produção total por função para o dia selecionado.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {activeDay && activeDay.functions.length > 0 ? (
+            <ProductionChart data={activeDay.functions}/>
+          ) : (
+             <p className="text-muted-foreground text-center py-4">
+                {activeDay ? 'Nenhuma função para exibir.' : 'Selecione um dia para ver os relatórios.'}
+             </p>
+          )}
+        </CardContent>
+      </Card>
       
        <Card>
         <CardHeader>
@@ -172,18 +218,6 @@ export default function ReportsPage() {
               className="hidden"
               accept=".json"
             />
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Relatórios Rápidos</CardTitle>
-           <CardDescription>
-            Gráficos e análises de produção, rankings, etc.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <p className="text-muted-foreground">Em breve.</p>
         </CardContent>
       </Card>
 
