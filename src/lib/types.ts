@@ -32,7 +32,8 @@ export interface StopwatchHistoryEntry {
 }
 
 export interface StopwatchState {
-    time: number; // Represents the current time on the stopwatch (countdown)
+    mode: 'countdown' | 'countup';
+    time: number; // Represents the current time on the stopwatch (countdown or countup)
     initialTime: number; // The starting time for the countdown
     pieces: number;
     isRunning: boolean;
@@ -45,3 +46,5 @@ export interface AppState {
   theme: 'light' | 'dark';
   stopwatch: StopwatchState;
 }
+
+    

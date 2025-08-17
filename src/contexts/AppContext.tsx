@@ -24,7 +24,8 @@ type Action =
   | { type: 'TOGGLE_TIMER', payload: { operator: string, functionName: string, auxiliaryTimePercent: number } }
   | { type: 'RESET_TIMER' }
   | { type: 'TICK' }
-  | { type: 'ADD_PIECE', payload: number };
+  | { type: 'ADD_PIECE', payload: number }
+  | { type: 'SET_STOPWATCH_MODE', payload: 'countdown' | 'countup' };
 
 
 const APP_STATE_KEY = 'prototrack-state-v2';
@@ -51,6 +52,7 @@ function getInitialState(): AppState {
     activeDayId: today,
     theme: 'dark',
     stopwatch: {
+        mode: 'countdown',
         time: 15,
         initialTime: 15,
         pieces: 0,
@@ -107,19 +109,37 @@ const appReducer = (state: AppState, action: Action): AppState => {
         return;
       }
       // Ações do Cronômetro
+      case 'SET_STOPWATCH_MODE':
+          draft.stopwatch.isRunning = false;
+          draft.stopwatch.pieces = 0;
+          draft.stopwatch.mode = action.payload;
+          if (action.payload === 'countdown') {
+            draft.stopwatch.time = draft.stopwatch.initialTime;
+          } else {
+            draft.stopwatch.time = 0;
+          }
+          return;
       case 'SET_TIMER':
-        if (!draft.stopwatch.isRunning) {
+        if (!draft.stopwatch.isRunning && draft.stopwatch.mode === 'countdown') {
           draft.stopwatch.initialTime = action.payload;
           draft.stopwatch.time = action.payload;
         }
         return;
-      case 'TOGGLE_TIMER':
-          if (draft.stopwatch.time > 0) {
-            draft.stopwatch.isRunning = !draft.stopwatch.isRunning;
-          }
-          if (!draft.stopwatch.isRunning && draft.stopwatch.pieces > 0) {
-              const { operator, functionName, auxiliaryTimePercent } = action.payload;
-              const duration = draft.stopwatch.initialTime;
+      case 'TOGGLE_TIMER': {
+          const { operator, functionName, auxiliaryTimePercent } = action.payload;
+          
+          if (draft.stopwatch.mode === 'countdown' && draft.stopwatch.time === 0) return;
+
+          draft.stopwatch.isRunning = !draft.stopwatch.isRunning;
+          
+          // Se parou de correr, salva o histórico
+          if (!draft.stopwatch.isRunning && (draft.stopwatch.pieces > 0 || draft.stopwatch.mode === 'countup')) {
+              const duration = draft.stopwatch.mode === 'countdown' 
+                  ? draft.stopwatch.initialTime - draft.stopwatch.time
+                  : draft.stopwatch.time;
+              
+              if (duration === 0) return; // Não salva se o tempo for 0
+              
               const pieces = draft.stopwatch.pieces;
               
               const pph = duration > 0 ? (pieces / duration) * 3600 : 0;
@@ -137,14 +157,24 @@ const appReducer = (state: AppState, action: Action): AppState => {
                   averagePerHour: pph,
                   adjustedAveragePerHour: adjustedPph,
               });
+              
               // Resetar para a próxima medição
-              draft.stopwatch.time = draft.stopwatch.initialTime;
+              if (draft.stopwatch.mode === 'countdown') {
+                  draft.stopwatch.time = draft.stopwatch.initialTime;
+              } else {
+                  draft.stopwatch.time = 0;
+              }
               draft.stopwatch.pieces = 0;
           }
           return;
+        }
       case 'RESET_TIMER':
           draft.stopwatch.isRunning = false;
-          draft.stopwatch.time = draft.stopwatch.initialTime;
+          if (draft.stopwatch.mode === 'countdown') {
+            draft.stopwatch.time = draft.stopwatch.initialTime;
+          } else {
+            draft.stopwatch.time = 0;
+          }
           draft.stopwatch.pieces = 0;
           return;
       case 'ADD_PIECE':
@@ -153,11 +183,17 @@ const appReducer = (state: AppState, action: Action): AppState => {
           }
           return;
       case 'TICK':
-          if (draft.stopwatch.isRunning && draft.stopwatch.time > 0) {
-              draft.stopwatch.time -= 1;
-              if (draft.stopwatch.time === 0) {
-                draft.stopwatch.isRunning = false;
-                // O toggle fará o salvamento do histórico, apenas para a contagem
+          if (draft.stopwatch.isRunning) {
+              if (draft.stopwatch.mode === 'countdown') {
+                  if (draft.stopwatch.time > 0) {
+                      draft.stopwatch.time -= 1;
+                      if (draft.stopwatch.time === 0) {
+                          draft.stopwatch.isRunning = false;
+                          // O toggle fará o salvamento do histórico
+                      }
+                  }
+              } else { // countup
+                  draft.stopwatch.time += 1;
               }
           }
           return;
@@ -236,7 +272,7 @@ const appReducer = (state: AppState, action: Action): AppState => {
             case 'UPDATE_OBSERVATION':
                 if (func) {
                     const key = `${payload.worker}_${payload.hour}`;
-                    if (!payload.reason && !payload.detail) {
+                    if (!payload.reason && !payload.detail && (!payload.minutesStopped || payload.minutesStopped === 0)) {
                         delete func.observations[key];
                     } else {
                         func.observations[key] = {
@@ -263,7 +299,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (savedStateString) {
         const savedState = JSON.parse(savedStateString);
         // Garante que a estrutura do cronômetro seja sempre a mais recente ao carregar
-        savedState.stopwatch = getInitialState().stopwatch; 
+        const initialStopwatch = getInitialState().stopwatch;
+        savedState.stopwatch = {
+          ...initialStopwatch,
+          history: savedState.stopwatch?.history || [],
+          mode: savedState.stopwatch?.mode || 'countdown',
+          initialTime: savedState.stopwatch?.initialTime || 15
+        };
+        // Reseta o estado em execução
+        savedState.stopwatch.isRunning = false;
+        savedState.stopwatch.pieces = 0;
+        savedState.stopwatch.time = savedState.stopwatch.mode === 'countdown' ? savedState.stopwatch.initialTime : 0;
+
+
         if(savedState.days === undefined) {
           return getInitialState();
         }
@@ -291,9 +339,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         const stateToSave = { ...state };
         // Não salva o estado em tempo real do cronômetro, apenas o histórico e as configurações gerais
         const stopwatchStateToSave = {
-            ...getInitialState().stopwatch, // Pega o estado inicial limpo
-            history: state.stopwatch.history, // Mantém o histórico
-            initialTime: state.stopwatch.initialTime // Mantém a última seleção de tempo
+            history: state.stopwatch.history,
+            initialTime: state.stopwatch.initialTime,
+            mode: state.stopwatch.mode,
         };
         (stateToSave as any).stopwatch = stopwatchStateToSave;
         
@@ -354,3 +402,5 @@ export const useAppContext = () => {
   }
   return context;
 };
+
+    
