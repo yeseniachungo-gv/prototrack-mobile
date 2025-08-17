@@ -1,23 +1,19 @@
 
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import Header from '@/components/Header';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { useAppContext } from '@/contexts/AppContext';
-import { Moon, Sun, Palette, Bell, HelpCircle, Shield, Users, Plus, Trash2, KeyRound } from 'lucide-react';
+import { Moon, Sun, Palette, Bell, HelpCircle, KeyRound, Users } from 'lucide-react';
 import {
   Accordion,
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 
 
@@ -109,8 +105,9 @@ export default function SettingsPage() {
                 <p>Bem-vindo ao GiraTempo! Aqui estão algumas dicas:</p>
                 <ul className="list-disc pl-5">
                     <li>Use a aba <strong>Dashboard</strong> para gerenciar suas funções de produção diárias.</li>
-                    <li>O <strong>Cronômetro</strong> é ideal para medições de tempo precisas, nos modos progressivo e regressivo.</li>
+                    <li>O <strong>Cronômetro</strong> é ideal para medições de tempo precisas.</li>
                     <li>Acesse <strong>Relatórios</strong> para análises automáticas e exportação de dados.</li>
+                    <li>Use o <strong>Mural</strong> para se comunicar com outras equipes.</li>
                 </ul>
               </AccordionContent>
             </AccordionItem>
