@@ -1,7 +1,7 @@
 // src/app/stopwatch/page.tsx
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import Header from '@/components/Header';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -64,6 +64,15 @@ export default function StopwatchPage() {
   const syncState = (newStopwatchState: any) => {
      dispatch({ type: 'UPDATE_STOPWATCH_STATE', payload: { profileId, stopwatchState: newStopwatchState } });
   }
+
+  const existingFunctionNames = useMemo(() => {
+    if (!activeProfile) return [];
+    const allNames = new Set<string>();
+    activeProfile.days.forEach(day => {
+        day.functions.forEach(func => allNames.add(func.name));
+    });
+    return Array.from(allNames);
+  }, [activeProfile]);
 
   const handleStart = () => {
     if (!localStopwatch.session.operator.trim() || !localStopwatch.session.functionName.trim()) {
@@ -175,7 +184,10 @@ export default function StopwatchPage() {
                 </div>
                 <div>
                     <Label htmlFor="functionName">Função</Label>
-                    <Input id="functionName" placeholder="Ex: Costura / Revisão" value={localStopwatch.session.functionName} onChange={handleInputChange} disabled={localStopwatch.isRunning}/>
+                    <Input id="functionName" placeholder="Ex: Costura / Revisão" list="function-names-list" value={localStopwatch.session.functionName} onChange={handleInputChange} disabled={localStopwatch.isRunning}/>
+                     <datalist id="function-names-list">
+                        {existingFunctionNames.map(name => <option key={name} value={name} />)}
+                    </datalist>
                 </div>
                  <div>
                     <Label htmlFor="auxiliaryTimePercent">Tempo auxiliar (%)</Label>

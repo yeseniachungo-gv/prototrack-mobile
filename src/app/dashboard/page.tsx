@@ -1,7 +1,7 @@
 // src/app/dashboard/page.tsx
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import Link from 'next/link';
 import Header from '@/components/Header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -83,9 +83,18 @@ const DaySelector = () => {
 const AddFunctionForm = ({ dayId }: { dayId: string }) => {
   const [functionName, setFunctionName] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const { dispatch, activeDay } = useAppContext();
+  const { dispatch, activeProfile, activeDay } = useAppContext();
   const { toast } = useToast();
   const [isOnline, setIsOnline] = useState(true);
+
+  const existingFunctionNames = useMemo(() => {
+    if (!activeProfile) return [];
+    const allNames = new Set<string>();
+    activeProfile.days.forEach(day => {
+        day.functions.forEach(func => allNames.add(func.name));
+    });
+    return Array.from(allNames);
+  }, [activeProfile]);
 
   React.useEffect(() => {
     setIsOnline(navigator.onLine);
@@ -163,7 +172,11 @@ const AddFunctionForm = ({ dayId }: { dayId: string }) => {
         value={functionName}
         onChange={(e) => setFunctionName(e.target.value)}
         className="flex-1"
+        list="function-names-list"
       />
+      <datalist id="function-names-list">
+        {existingFunctionNames.map(name => <option key={name} value={name} />)}
+      </datalist>
       <Button type="button" variant="outline" size="icon" onClick={handleAISuggest} disabled={isLoading || !isOnline} title="Obter sugestão automática">
         {!isOnline ? <WifiOff className="h-4 w-4" /> : <Sparkles className="h-4 w-4" />}
       </Button>
