@@ -168,8 +168,8 @@ const DailyGoalCard = () => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
     const target = parseInt(formData.get('goalTarget') as string) || 0;
-    const functionId = formData.get('goalFunction') as string || null;
-    dispatch({ type: 'UPDATE_DAILY_GOAL', payload: { goal: target, functionId } });
+    const functionId = formData.get('goalFunction') as string;
+    dispatch({ type: 'UPDATE_DAILY_GOAL', payload: { goal: target, functionId: functionId || null } });
     setIsOpen(false);
   };
 
@@ -187,38 +187,40 @@ const DailyGoalCard = () => {
           </div>
           <Popover open={isOpen} onOpenChange={setIsOpen}>
             <PopoverTrigger asChild>
-              <Button variant="outline" size="icon" className="w-9 h-9">
+               <Button variant="outline" size="icon" className="w-9 h-9" disabled={!activeDay}>
                 <Edit className="w-4 h-4" />
               </Button>
             </PopoverTrigger>
             <PopoverContent className="w-80">
-              <form onSubmit={handleSave} className="grid gap-4">
-                <div className="space-y-2">
-                  <h4 className="font-medium leading-none">Definir Meta</h4>
-                  <p className="text-sm text-muted-foreground">
-                    Escolha a meta de peças e a função final.
-                  </p>
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="goalTarget">Meta de Peças</Label>
-                  <Input id="goalTarget" name="goalTarget" type="number" defaultValue={dailyGoal.target} />
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="goalFunction">Função para Meta</Label>
-                   <Select name="goalFunction" defaultValue={dailyGoal.functionId ?? ""}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecione uma função" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="">Nenhuma</SelectItem>
-                      {activeDay?.functions.map(f => (
-                        <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <Button type="submit">Salvar</Button>
-              </form>
+               {activeDay && (
+                  <form onSubmit={handleSave} className="grid gap-4">
+                    <div className="space-y-2">
+                      <h4 className="font-medium leading-none">Definir Meta</h4>
+                      <p className="text-sm text-muted-foreground">
+                        Escolha a meta de peças e a função final.
+                      </p>
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="goalTarget">Meta de Peças</Label>
+                      <Input id="goalTarget" name="goalTarget" type="number" defaultValue={dailyGoal.target} />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="goalFunction">Função para Meta</Label>
+                      <Select name="goalFunction" defaultValue={dailyGoal.functionId ?? ""}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecione uma função" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="">Nenhuma</SelectItem>
+                          {activeDay.functions.map(f => (
+                            <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <Button type="submit">Salvar</Button>
+                  </form>
+               )}
             </PopoverContent>
           </Popover>
         </div>
@@ -237,7 +239,7 @@ const DailyGoalCard = () => {
           </div>
         ) : (
           <p className="text-muted-foreground text-center py-4">
-            Defina uma meta e selecione uma função para começar a acompanhar.
+            {activeDay ? 'Defina uma meta e selecione uma função para começar.' : 'Selecione um dia para definir uma meta.'}
           </p>
         )}
       </CardContent>
@@ -306,3 +308,6 @@ export default function HomePage() {
     </div>
   );
 }
+
+
+    
