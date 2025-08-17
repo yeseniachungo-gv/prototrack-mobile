@@ -223,7 +223,7 @@ const appReducer = produce((draft: AppState, action: Action) => {
             if (!draft.stopwatch.isRunning) break;
             draft.stopwatch.isRunning = false;
 
-            const { operator, functionName, auxiliaryTimePercent } = draft.stopwatch.session;
+            const { operator, functionName } = draft.stopwatch.session;
             const duration = draft.stopwatch.mode === 'countdown'
                 ? draft.stopwatch.initialTime - draft.stopwatch.time
                 : draft.stopwatch.time;
@@ -231,8 +231,6 @@ const appReducer = produce((draft: AppState, action: Action) => {
             if (duration > 0 || draft.stopwatch.pieces > 0) {
                 const pieces = draft.stopwatch.pieces;
                 const pph = duration > 0 ? (pieces / duration) * 3600 : 0;
-                const effectiveTimePercentage = 1 - (auxiliaryTimePercent / 100);
-                const adjustedPph = effectiveTimePercentage > 0 ? pph / effectiveTimePercentage : 0;
 
                 const newEntry: StopwatchHistoryEntry = {
                     id: uuidv4(),
@@ -241,9 +239,7 @@ const appReducer = produce((draft: AppState, action: Action) => {
                     pieces: pieces,
                     workerName: operator,
                     functionName: functionName,
-                    auxiliaryTimePercent: auxiliaryTimePercent,
                     averagePerHour: pph,
-                    adjustedAveragePerHour: adjustedPph,
                 };
                 draft.stopwatch.history.unshift(newEntry);
             }
@@ -277,13 +273,11 @@ const appReducer = produce((draft: AppState, action: Action) => {
                     draft.stopwatch.isRunning = false; // Stop the timer
                     
                     // Logic from STOP_TIMER, duplicated here to avoid chained dispatches
-                    const { operator, functionName, auxiliaryTimePercent } = draft.stopwatch.session;
+                    const { operator, functionName } = draft.stopwatch.session;
                     const duration = draft.stopwatch.initialTime;
                     if (duration > 0 || draft.stopwatch.pieces > 0) {
                       const pieces = draft.stopwatch.pieces;
                       const pph = duration > 0 ? (pieces / duration) * 3600 : 0;
-                      const effectiveTimePercentage = 1 - (auxiliaryTimePercent / 100);
-                      const adjustedPph = effectiveTimePercentage > 0 ? pph / effectiveTimePercentage : 0;
                       const newEntry: StopwatchHistoryEntry = {
                           id: uuidv4(),
                           endTime: new Date().toISOString(),
@@ -291,9 +285,7 @@ const appReducer = produce((draft: AppState, action: Action) => {
                           pieces,
                           workerName: operator,
                           functionName,
-                          auxiliaryTimePercent,
                           averagePerHour: pph,
-                          adjustedAveragePerHour: adjustedPph,
                       };
                       draft.stopwatch.history.unshift(newEntry);
                     }
@@ -327,26 +319,30 @@ const appReducer = produce((draft: AppState, action: Action) => {
                     break;
                 }
                 case 'ADD_DAY': {
-                    if (activeProfile.days.length === 0) {
-                        const today = new Date().toISOString().split('T')[0];
-                        activeProfile.days.push({ id: today, functions: [] });
-                        activeProfile.activeDayId = today;
-                        break;
-                    }
+                    const lastDayInState = activeProfile.days.length > 0 
+                        ? activeProfile.days.reduce((latest, day) => new Date(day.id) > new Date(latest.id) ? day : latest)
+                        : null;
 
-                    const lastDayInState = activeProfile.days.reduce((latest, day) => new Date(day.id) > new Date(latest.id) ? day : latest, activeProfile.days[0]);
-                    const nextDay = new Date(lastDayInState.id + 'T00:00:00');
-                    nextDay.setDate(nextDay.getDate() + 1);
-                    const newDayId = nextDay.toISOString().split('T')[0];
-
-                    if (!activeProfile.days.find(d => d.id === newDayId)) {
-                        const functionsTemplate: FunctionEntry[] = JSON.parse(JSON.stringify(lastDayInState.functions));
+                    let newDayId: string;
+                    let functionsTemplate: FunctionEntry[] = [];
+                    
+                    if (lastDayInState) {
+                        const nextDay = new Date(lastDayInState.id + 'T00:00:00');
+                        nextDay.setDate(nextDay.getDate() + 1);
+                        newDayId = nextDay.toISOString().split('T')[0];
+                        
+                        functionsTemplate = JSON.parse(JSON.stringify(lastDayInState.functions));
                         functionsTemplate.forEach((func) => {
                             func.id = uuidv4();
                             func.pieces = {};
                             func.observations = {};
                         });
-                        
+                    } else {
+                        // If no days exist, create today from scratch
+                        newDayId = new Date().toISOString().split('T')[0];
+                    }
+
+                    if (!activeProfile.days.find(d => d.id === newDayId)) {
                         const newDay: Day = { id: newDayId, functions: functionsTemplate };
                         activeProfile.days.push(newDay);
                         activeProfile.days.sort((a, b) => new Date(a.id).getTime() - new Date(b.id).getTime());

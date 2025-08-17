@@ -1,7 +1,7 @@
 // src/app/admin/page.tsx
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import Header from '@/components/Header';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { ShieldCheck, Users, BarChart2, Loader2, BookCheck, Plus, Trash2, HardHat, AlertTriangle } from 'lucide-react';
@@ -34,16 +34,19 @@ const AdminProductionChart = () => {
         return Array.from(daysSet).sort((a,b) => new Date(b).getTime() - new Date(a).getTime());
     }, [state.profiles]);
     
+    // Correction: If the selectedDayId is no longer valid, reset to the first available day.
+    if (allDays.length > 0 && selectedDayId && !allDays.includes(selectedDayId)) {
+        setSelectedDayId(allDays[0]);
+    }
+    
     if (allDays.length === 0) {
         return <div className="text-center text-muted-foreground py-8">Nenhum dia com dados encontrado.</div>;
     }
 
-    if(selectedDayId && !allDays.includes(selectedDayId)){
-        setSelectedDayId(allDays[0] || null);
-    }
+    const currentDay = selectedDayId || allDays[0];
     
     const chartData = state.profiles.map(profile => {
-        const dayData = profile.days.find(d => d.id === (selectedDayId || allDays[0]));
+        const dayData = profile.days.find(d => d.id === currentDay);
         const totalPieces = dayData 
             ? dayData.functions.reduce((total, func) => total + Object.values(func.pieces).reduce((sum, p) => sum + p, 0), 0)
             : 0;
@@ -57,7 +60,7 @@ const AdminProductionChart = () => {
     return (
       <div className="space-y-4">
         <div className="w-full sm:w-auto">
-             <Select value={selectedDayId ?? ''} onValueChange={setSelectedDayId}>
+             <Select value={currentDay ?? ''} onValueChange={setSelectedDayId}>
                 <SelectTrigger className="w-full sm:w-[280px]">
                     <SelectValue placeholder="Selecione um dia para análise" />
                 </SelectTrigger>

@@ -27,20 +27,16 @@ export default function ProfileSelectionPage() {
   };
 
   const topPerformerId = useMemo(() => {
-    let topProfileId: string | null = null;
-    let maxPieces = -1;
-
     // Find the most recent day with any production data across all profiles
-    let latestDayId: string | null = null;
-    profiles.forEach(profile => {
-        profile.days.forEach(day => {
-            if (!latestDayId || parseISO(day.id) > parseISO(latestDayId)) {
-                latestDayId = day.id;
-            }
-        });
+    const allDays = profiles.flatMap(p => p.days.map(d => d.id));
+    if (allDays.length === 0) return null;
+
+    const latestDayId = allDays.reduce((latest, current) => {
+        return parseISO(current) > parseISO(latest) ? current : latest;
     });
 
-    if (!latestDayId) return null;
+    let topProfileId: string | null = null;
+    let maxPieces = -1;
 
     profiles.forEach(profile => {
       const dayData = profile.days.find(d => d.id === latestDayId);
