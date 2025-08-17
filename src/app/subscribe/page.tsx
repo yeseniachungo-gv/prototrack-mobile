@@ -20,9 +20,9 @@ const plans = {
             { text: 'Até 3 perfis de equipe', icon: Users, included: true },
             { text: 'Controle de produção diário', icon: Check, included: true },
             { text: 'Cronômetro de produção', icon: Check, included: true },
-            { text: 'Resumos automáticos diários', icon: BrainCircuit, included: true },
+            { text: 'Resumos automáticos diários e semanais', icon: BrainCircuit, included: true },
             { text: 'Mural de Comunicados', icon: MessageSquare, included: false },
-            { text: 'Análises consolidadas de equipes', icon: BrainCircuit, included: false },
+            { text: 'Resumos mensais e análises consolidadas', icon: BrainCircuit, included: false },
         ],
         icon: Shield,
     },
@@ -33,7 +33,7 @@ const plans = {
             { text: 'Até 6 perfis de equipe', icon: Users, included: true },
             { text: 'Todas as funções do Básico', icon: Check, included: true },
             { text: 'Mural de Comunicados', icon: MessageSquare, included: true },
-            { text: 'Análises consolidadas de equipes', icon: BrainCircuit, included: true },
+            { text: 'Resumos mensais e análises consolidadas', icon: BrainCircuit, included: true },
             { text: 'Exportação de relatórios em CSV', icon: FileText, included: true },
         ],
         icon: Zap,
@@ -97,7 +97,7 @@ export default function SubscribePage() {
                                 <ul className="space-y-3">
                                     {planData.features.map((feature, index) => (
                                         <li key={index} className={cn("flex items-start gap-3", !feature.included && "text-muted-foreground line-through")}>
-                                            <feature.icon className={cn("w-5 h-5 mt-0.5 flex-shrink-0", feature.included ? "text-green-500" : "text-muted-foreground")} />
+                                            <div className="flex-shrink-0">{feature.included ? <Check className="w-5 h-5 mt-0.5 text-green-500"/> : <X className="w-5 h-5 mt-0.5 text-muted-foreground" />}</div>
                                             <span>{feature.text}</span>
                                         </li>
                                     ))}

@@ -11,9 +11,12 @@ import { Loader2, BookCheck, CalendarRange, WifiOff } from 'lucide-react';
 import type { Day } from '@/lib/types';
 import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { generateDailyReport, GenerateDailyReportOutput } from '@/ai/flows/generate-daily-report';
+import { generateWeeklyReport, GenerateWeeklyReportOutput } from '@/ai/flows/generate-weekly-report';
+import { generateMonthlyReport, GenerateMonthlyReportOutput } from '@/ai/flows/generate-monthly-report';
 import ReportDialog from '@/components/ReportDialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { subDays, format, parseISO } from 'date-fns';
+import { subDays, format, parseISO, startOfMonth, endOfMonth, startOfWeek, endOfWeek } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 
 // --- Types and Helper Functions ---
 type Period = '7d' | '14d' | '30d' | 'all';
@@ -68,10 +71,15 @@ export default function ReportsPage() {
   const { toast } = useToast();
   
   const [isGenerating, setIsGenerating] = useState(false);
-  const [reportData, setReportData] = useState<GenerateDailyReportOutput | null>(null);
+  const [reportData, setReportData] = useState<GenerateDailyReportOutput | GenerateWeeklyReportOutput | GenerateMonthlyReportOutput | null>(null);
+  const [reportTitle, setReportTitle] = useState('');
+  const [reportSummary, setReportSummary] = useState('');
+  const [reportSections, setReportSections] = useState<{title: string, content: string}[]>([]);
   const [isReportOpen, setIsReportOpen] = useState(false);
   const [selectedPeriod, setSelectedPeriod] = useState<Period>('7d');
   const [isOnline, setIsOnline] = useState(true);
+
+  const hasProPlan = state.plan === 'pro' || state.plan === 'premium';
 
   React.useEffect(() => {
     setIsOnline(navigator.onLine);
@@ -108,31 +116,93 @@ export default function ReportsPage() {
   }, [activeProfile, selectedPeriod]);
 
   // --- Action Handlers ---
-  const handleGenerateDailyReport = async () => {
+
+  const handleGenerateReport = async (type: 'daily' | 'weekly' | 'monthly') => {
     if (!isOnline) {
       toast({ title: 'Funcionalidade offline', description: 'A geração de relatórios requer conexão com a internet.', variant: 'destructive'});
       return;
     }
-    const activeDay = activeProfile?.days.find(d => d.id === activeProfile.activeDayId);
-    if (!activeDay || !activeProfile) {
-        toast({ title: 'Nenhum dia ativo selecionado', description: "Vá para o dashboard e selecione um dia.", variant: 'destructive' });
-        return;
-    }
+    if (!activeProfile) return;
     
     setIsGenerating(true);
     try {
-      const goalFunction = activeDay.functions.find(f => f.id === activeProfile.dailyGoal.functionId);
-      const report = await generateDailyReport({
-        productionData: JSON.stringify(activeDay.functions),
-        dailyGoal: JSON.stringify({
-          target: activeProfile.dailyGoal.target,
-          functionName: goalFunction?.name || 'N/A'
-        })
-      });
-      setReportData(report);
+      let report;
+      if (type === 'daily') {
+        const activeDay = activeProfile.days.find(d => d.id === activeProfile.activeDayId);
+        if (!activeDay) {
+          toast({ title: 'Nenhum dia ativo selecionado', description: "Vá para o dashboard e selecione um dia.", variant: 'destructive' });
+          setIsGenerating(false);
+          return;
+        }
+        const goalFunction = activeDay.functions.find(f => f.id === activeProfile.dailyGoal.functionId);
+        report = await generateDailyReport({
+          productionData: JSON.stringify(activeDay.functions),
+          dailyGoal: JSON.stringify({
+            target: activeProfile.dailyGoal.target,
+            functionName: goalFunction?.name || 'N/A'
+          })
+        });
+        setReportTitle(report.reportTitle);
+        setReportSummary(report.summary);
+        setReportSections([
+          { title: 'Análise de Desempenho', content: report.performanceAnalysis },
+          { title: 'Análise de Paradas', content: report.stoppageAnalysis },
+          { title: 'Análise da Meta', content: report.goalAnalysis },
+          { title: 'Recomendações', content: report.recommendations },
+        ]);
+
+      } else if (type === 'weekly') {
+        const today = new Date();
+        const start = startOfWeek(today, { locale: ptBR });
+        const end = endOfWeek(today, { locale: ptBR });
+        const weekDays = activeProfile.days.filter(d => {
+            const dayDate = parseISO(d.id);
+            return dayDate >= start && dayDate <= end;
+        });
+        if (weekDays.length === 0) {
+            toast({ title: 'Sem dados na semana', description: 'Não há dados de produção nesta semana para gerar um relatório.', variant: 'destructive' });
+            setIsGenerating(false);
+            return;
+        }
+        report = await generateWeeklyReport({
+            productionData: JSON.stringify(weekDays.map(d => ({id: d.id, functions: d.functions}))),
+            weekPeriod: `${format(start, 'dd/MM')} a ${format(end, 'dd/MM')}`
+        });
+        setReportTitle(report.reportTitle);
+        setReportSummary(report.summary);
+        setReportSections([
+          { title: 'Desempenho por Dia', content: report.performanceByDay },
+          { title: 'Análise de Paradas', content: report.stoppageAnalysis },
+          { title: 'Recomendações', content: report.recommendations },
+        ]);
+      } else if (type === 'monthly') {
+          const today = new Date();
+          const start = startOfMonth(today);
+          const end = endOfMonth(today);
+          const monthDays = activeProfile.days.filter(d => {
+            const dayDate = parseISO(d.id);
+            return dayDate >= start && dayDate <= end;
+          });
+          if (monthDays.length === 0) {
+            toast({ title: 'Sem dados no mês', description: 'Não há dados de produção neste mês para gerar um relatório.', variant: 'destructive' });
+            setIsGenerating(false);
+            return;
+          }
+          report = await generateMonthlyReport({
+              productionData: JSON.stringify(monthDays.map(d => ({id: d.id, functions: d.functions}))),
+              monthName: format(today, 'MMMM de yyyy', { locale: ptBR })
+          });
+          setReportTitle(report.reportTitle);
+          setReportSummary(report.summary);
+          setReportSections([
+              { title: 'Tendência de Desempenho', content: report.performanceTrend },
+              { title: 'Análise de Paradas', content: report.stoppageAnalysis },
+              { title: 'Recomendações Estratégicas', content: report.recommendations },
+          ]);
+      }
       setIsReportOpen(true);
     } catch(err) {
-      console.error("Erro ao gerar relatório diário", err);
+      console.error(`Erro ao gerar relatório de ${type}`, err);
       toast({ title: 'Erro ao gerar relatório', description: 'Não foi possível se conectar com o serviço de análise.', variant: 'destructive' });
     } finally {
       setIsGenerating(false);
@@ -140,18 +210,12 @@ export default function ReportsPage() {
   };
 
   const renderReportDialog = () => {
-    if (!reportData) return null;
+    if (!isReportOpen) return null;
 
-    const data = reportData as GenerateDailyReportOutput;
     return <ReportDialog
-        title={data.reportTitle}
-        summary={data.summary}
-        sections={[
-            { title: 'Análise de Desempenho', content: data.performanceAnalysis },
-            { title: 'Análise de Paradas', content: data.stoppageAnalysis },
-            { title: 'Análise da Meta', content: data.goalAnalysis },
-            { title: 'Recomendações', content: data.recommendations },
-        ]}
+        title={reportTitle}
+        summary={reportSummary}
+        sections={reportSections}
         isOpen={isReportOpen}
         onClose={() => setIsReportOpen(false)}
     />
@@ -165,14 +229,22 @@ export default function ReportsPage() {
         <CardHeader>
           <CardTitle>Análises Automáticas</CardTitle>
           <CardDescription>
-            Gere resumos e análises a partir dos dados de produção do dia selecionado no dashboard.
+            Gere resumos e análises a partir dos dados de produção.
             {!isOnline && <span className="text-amber-500 block mt-1"> (Requer Internet)</span>}
           </CardDescription>
         </CardHeader>
-        <CardContent className="flex flex-col sm:flex-row gap-4">
-          <Button onClick={handleGenerateDailyReport} disabled={!activeProfile?.activeDayId || isGenerating || !isOnline}>
+        <CardContent className="flex flex-wrap gap-2">
+          <Button onClick={() => handleGenerateReport('daily')} disabled={!activeProfile?.activeDayId || isGenerating || !isOnline}>
             {isGenerating ? <Loader2 className="mr-2 animate-spin"/> : !isOnline ? <WifiOff className="mr-2"/> : <BookCheck className="mr-2" />}
-            Gerar Resumo do Dia
+            Resumo do Dia
+          </Button>
+           <Button onClick={() => handleGenerateReport('weekly')} disabled={isGenerating || !isOnline}>
+            {isGenerating ? <Loader2 className="mr-2 animate-spin"/> : !isOnline ? <WifiOff className="mr-2"/> : <BookCheck className="mr-2" />}
+            Resumo da Semana
+          </Button>
+           <Button onClick={() => handleGenerateReport('monthly')} disabled={isGenerating || !isOnline || !hasProPlan} title={!hasProPlan ? "Disponível no plano Pro e Premium" : ""}>
+            {isGenerating ? <Loader2 className="mr-2 animate-spin"/> : !isOnline ? <WifiOff className="mr-2"/> : <BookCheck className="mr-2" />}
+            Resumo do Mês
           </Button>
         </CardContent>
       </Card>
