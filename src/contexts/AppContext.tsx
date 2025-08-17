@@ -1,4 +1,3 @@
-
 // src/contexts/AppContext.tsx
 "use client";
 
@@ -125,11 +124,10 @@ const appReducer = produce((draft: AppState, action: Action) => {
     const saveStopwatchHistory = (profile: Profile) => {
         const { session, mode, initialTime, time, pieces } = profile.stopwatch;
         
-        // This is the duration used for PPH calculation.
-        // For 'countdown', we use the total intended time. For 'countup', we use the final elapsed time.
-        const calculationDuration = mode === 'countdown' ? initialTime : time;
+        // Duration for PPH is the total standard time for countdowns, or final elapsed time for countups.
+        const calculationDuration = mode === 'countdown' && initialTime > 0 ? initialTime : time;
 
-        // This is the actual elapsed time.
+        // Actual elapsed time
         const actualDuration = mode === 'countdown' ? initialTime - time : time;
         
         if (actualDuration > 0 || pieces > 0) {
@@ -326,27 +324,49 @@ const appReducer = produce((draft: AppState, action: Action) => {
                     if (item) {
                         const oldName = item.name;
                         item.name = newName;
+                        
+                        // Propagate name change throughout the profile's data
                         if (type === 'workers') {
                             activeProfile.days.forEach(day => {
                                 day.functions.forEach(func => {
+                                    // Update worker in the function's worker list
                                     const workerIndex = func.workers.indexOf(oldName);
                                     if (workerIndex > -1) {
                                         func.workers[workerIndex] = newName;
                                     }
-                                    Object.keys(func.pieces).forEach(key => {
-                                        if (key.startsWith(`${oldName}_`)) {
-                                            const newKey = key.replace(`${oldName}_`, `${newName}_`);
-                                            func.pieces[newKey] = func.pieces[key];
-                                            delete func.pieces[key];
+                                    
+                                    // Update keys in pieces and observations objects
+                                    const updateKeys = (obj: any) => {
+                                        Object.keys(obj).forEach(key => {
+                                            if (key.startsWith(`${oldName}_`)) {
+                                                const newKey = key.replace(`${oldName}_`, `${newName}_`);
+                                                obj[newKey] = obj[key];
+                                                delete obj[key];
+                                            }
+                                        });
+                                    };
+                                    updateKeys(func.pieces);
+                                    updateKeys(func.observations);
+                                });
+                            });
+                             // Update stopwatch history
+                            activeProfile.stopwatch.history.forEach(entry => {
+                                if (entry.workerName === oldName) {
+                                    entry.workerName = newName;
+                                }
+                            });
+                            // Update current stopwatch session
+                            if(activeProfile.stopwatch.session.operator === oldName) {
+                                activeProfile.stopwatch.session.operator = newName;
+                            }
+                        } else { // type === 'reasons'
+                             activeProfile.days.forEach(day => {
+                                day.functions.forEach(func => {
+                                     Object.values(func.observations).forEach(obs => {
+                                        if (obs.reason === oldName) {
+                                            obs.reason = newName;
                                         }
-                                    });
-                                     Object.keys(func.observations).forEach(key => {
-                                        if (key.startsWith(`${oldName}_`)) {
-                                            const newKey = key.replace(`${oldName}_`, `${newName}_`);
-                                            func.observations[newKey] = func.observations[key];
-                                            delete func.observations[key];
-                                        }
-                                    });
+                                     });
                                 });
                             });
                         }
@@ -356,13 +376,15 @@ const appReducer = produce((draft: AppState, action: Action) => {
                 case 'ADD_MASTER_DATA': {
                     const { type, name } = action.payload;
                     const targetList = type === 'workers' ? activeProfile.masterWorkers : activeProfile.masterStopReasons;
-                    if (!targetList.find(i => i.name.toLowerCase() === name.toLowerCase())) {
-                        targetList.push({ id: uuidv4(), name });
+                    if (name.trim() && !targetList.find(i => i.name.toLowerCase() === name.trim().toLowerCase())) {
+                        targetList.push({ id: uuidv4(), name: name.trim() });
                     }
                     break;
                 }
                 case 'DELETE_MASTER_DATA': {
                     const { type, id } = action.payload;
+                    // Note: This only deletes from the master list. It does not cascade delete data.
+                    // This is intentional to preserve historical data integrity.
                     if (type === 'workers') {
                         activeProfile.masterWorkers = activeProfile.masterWorkers.filter(i => i.id !== id);
                     } else {

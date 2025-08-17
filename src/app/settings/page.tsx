@@ -40,12 +40,19 @@ import {
   DialogClose,
 } from "@/components/ui/dialog"
 
-const MasterDataEditor = ({ item, type, onSave }: { item: MasterDataItem, type: 'workers' | 'reasons', onSave: (id: string, newName: string) => void }) => {
+const MasterDataEditor = ({ item, type }: { item: MasterDataItem, type: 'workers' | 'reasons'}) => {
+    const { dispatch } = useAppContext();
     const [name, setName] = useState(item.name);
     const [isOpen, setIsOpen] = useState(false);
+    const { toast } = useToast();
 
     const handleSave = () => {
-        onSave(item.id, name);
+        if (!name.trim()) {
+            toast({ title: 'Erro', description: 'O nome não pode estar vazio.', variant: 'destructive'});
+            return;
+        }
+        dispatch({ type: 'EDIT_MASTER_DATA', payload: { type, id: item.id, newName: name.trim() } });
+        toast({ title: 'Item atualizado com sucesso!' });
         setIsOpen(false);
     }
     
@@ -79,7 +86,7 @@ const MasterDataEditor = ({ item, type, onSave }: { item: MasterDataItem, type: 
 }
 
 const MasterDataManager = ({ title, icon: Icon, items, type }: { title: string, icon: React.ElementType, items: MasterDataItem[], type: 'workers' | 'reasons' }) => {
-    const { dispatch, activeProfile } = useAppContext();
+    const { dispatch } = useAppContext();
     const [newItemName, setNewItemName] = useState('');
     const { toast } = useToast();
 
@@ -97,15 +104,6 @@ const MasterDataManager = ({ title, icon: Icon, items, type }: { title: string, 
         dispatch({ type: 'DELETE_MASTER_DATA', payload: { type, id }});
         toast({ title: 'Item removido.', variant: 'destructive'});
     }
-
-    const handleEditItem = (id: string, newName: string) => {
-        if (!newName.trim()) {
-            toast({ title: 'Erro', description: 'O nome não pode estar vazio.', variant: 'destructive'});
-            return;
-        }
-        dispatch({ type: 'EDIT_MASTER_DATA', payload: { type, id, newName: newName.trim() } });
-        toast({ title: 'Item atualizado com sucesso!' });
-    };
 
     return (
         <Card>
@@ -130,7 +128,7 @@ const MasterDataManager = ({ title, icon: Icon, items, type }: { title: string, 
                         <div key={item.id} className="flex items-center justify-between p-2 bg-muted rounded-md">
                             <span>{item.name}</span>
                             <div className="flex items-center gap-1">
-                                <MasterDataEditor item={item} type={type} onSave={handleEditItem} />
+                                <MasterDataEditor item={item} type={type} />
                                 <AlertDialog>
                                     <AlertDialogTrigger asChild>
                                         <Button variant="ghost" size="icon" className="h-7 w-7">
@@ -141,7 +139,7 @@ const MasterDataManager = ({ title, icon: Icon, items, type }: { title: string, 
                                         <AlertDialogHeader>
                                             <AlertDialogTitle>Excluir "{item.name}"?</AlertDialogTitle>
                                             <AlertDialogDescription>
-                                                Esta ação não pode ser desfeita.
+                                                Esta ação não pode ser desfeita e apenas remove o item da lista mestra. Dados históricos não serão afetados.
                                             </AlertDialogDescription>
                                         </AlertDialogHeader>
                                         <AlertDialogFooter>
@@ -176,8 +174,6 @@ export default function SettingsPage() {
   const [confirmPin, setConfirmPin] = useState('');
   
   const hasProPlan = state.plan === 'pro' || state.plan === 'premium';
-  const hasPremiumPlan = state.plan === 'premium';
-
 
   const toggleTheme = () => {
     const newTheme = state.theme === 'dark' ? 'light' : 'dark';

@@ -1,4 +1,3 @@
-
 // src/app/stopwatch/page.tsx
 "use client";
 
@@ -113,9 +112,10 @@ export default function StopwatchPage() {
     syncState(newStopwatchState);
   };
 
-  const calculationDuration = localStopwatch.mode === 'countup' 
-    ? localStopwatch.time
-    : localStopwatch.initialTime;
+  // The duration for PPH calculation is the total intended time for countdowns.
+  const calculationDuration = localStopwatch.mode === 'countdown' && localStopwatch.initialTime > 0
+    ? localStopwatch.initialTime
+    : localStopwatch.time;
   
   const currentPph = calculationDuration > 0 ? (localStopwatch.pieces / calculationDuration) * 3600 : 0;
   
@@ -318,5 +318,3 @@ export default function StopwatchPage() {
     </div>
   );
 }
-
-    

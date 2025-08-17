@@ -38,13 +38,11 @@ const ObservationPopover: React.FC<ObservationPopoverProps> = ({ dayId, function
   const handleSave = () => {
     dispatch({
       type: 'UPDATE_OBSERVATION',
-      payload: { dayId, functionId, worker, hour, reason, detail, minutesStopped: showMinutesInput ? minutesStopped : 0 }
+      payload: { dayId, functionId, worker, hour, reason, detail, minutesStopped }
     });
     toast({ title: "Observação salva!" });
     setIsOpen(false);
   };
-  
-  const showMinutesInput = reason === 'Manutenção de máquina' || reason === 'Pausa prolongada';
   
   return (
     <Popover open={isOpen} onOpenChange={setIsOpen}>
@@ -72,18 +70,16 @@ const ObservationPopover: React.FC<ObservationPopoverProps> = ({ dayId, function
               </SelectContent>
             </Select>
           </div>
-          {showMinutesInput && (
-            <div className="grid gap-2">
-              <Label htmlFor={`minutos-${worker}-${hour}`}>Minutos de Parada</Label>
-              <Input
-                id={`minutos-${worker}-${hour}`}
-                type="number"
-                placeholder="0"
-                value={minutesStopped}
-                onChange={(e) => setMinutesStopped(parseInt(e.target.value) || 0)}
-              />
-            </div>
-          )}
+          <div className="grid gap-2">
+            <Label htmlFor={`minutos-${worker}-${hour}`}>Minutos de Parada</Label>
+            <Input
+              id={`minutos-${worker}-${hour}`}
+              type="number"
+              placeholder="0"
+              value={minutesStopped}
+              onChange={(e) => setMinutesStopped(parseInt(e.target.value) || 0)}
+            />
+          </div>
           <div className="grid gap-2">
             <Label htmlFor={`detalhe-${worker}-${hour}`}>Detalhe</Label>
             <Textarea
