@@ -19,11 +19,11 @@ type Action =
   | { type: 'TOGGLE_THEME' };
 
 
-const APP_STATE_KEY = 'prototrack-state';
+const APP_STATE_KEY = 'prototrack-state-v2';
 
 const makeHourRange = (start: number, end: number) => {
   const hours = [];
-  for(let h=start; h<end; h++){
+  for(let h=start; h<=end; h++){
     hours.push(String(h).padStart(2,'0') + ':00');
   }
   return hours;
@@ -34,7 +34,11 @@ function getInitialState(): AppState {
     const savedState = localStorage.getItem(APP_STATE_KEY);
     if (savedState) {
       try {
-        return JSON.parse(savedState);
+        const parsedState = JSON.parse(savedState);
+        // Basic validation to prevent app crash on bad state
+        if (parsedState.days && parsedState.activeDayId) {
+          return parsedState;
+        }
       } catch (e) {
         console.error("Failed to parse state from localStorage", e);
       }
@@ -47,26 +51,9 @@ function getInitialState(): AppState {
   return {
     days: [{
       id: today,
-      name: `Dia ${today}`,
+      name: `Dia ${today.slice(5).split('-').reverse().join('/')}`,
       date: new Date().toISOString(),
-      functions: [{
-        id: crypto.randomUUID(),
-        name: 'Costura',
-        description: '',
-        workers: ['Maria', 'João'],
-        hours: makeHourRange(8, 18),
-        observations: [],
-        checklists: [],
-      },
-      {
-        id: crypto.randomUUID(),
-        name: 'Embalagem',
-        description: '',
-        workers: ['Ana', 'Carlos'],
-        hours: makeHourRange(8, 18),
-        observations: [],
-        checklists: [],
-      }],
+      functions: [],
       history: [],
     }],
     activeDayId: today,
@@ -95,13 +82,16 @@ const appReducer = (state: AppState, action: Action): AppState => {
         
         case 'ADD_DAY': {
             const { dayId } = action.payload;
+            const formattedDate = dayId.slice(5).split('-').reverse().join('/');
             draft.days.push({
                 id: dayId,
-                name: `Dia ${dayId}`,
+                name: `Dia ${formattedDate}`,
                 date: new Date(dayId).toISOString(),
                 functions: [],
                 history: [],
             });
+            // Sort days by date
+            draft.days.sort((a,b) => a.id.localeCompare(b.id));
             draft.activeDayId = dayId;
             break;
         }
@@ -113,8 +103,8 @@ const appReducer = (state: AppState, action: Action): AppState => {
                     id: crypto.randomUUID(),
                     name: action.payload.name,
                     description: '',
-                    workers: ['Operador 1', 'Operador 2', 'Operador 3'],
-                    hours: makeHourRange(8, 18), // Default 8:00 to 17:00
+                    workers: ['Trabalhador 1'],
+                    hours: makeHourRange(8, 17),
                     observations: [],
                     checklists: [],
                 });
@@ -194,6 +184,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   useEffect(() => {
     localStorage.setItem(APP_STATE_KEY, JSON.stringify(state));
   }, [state]);
+
+  useEffect(() => {
+    // This effect runs on the client and handles the theme class on the html element
+    const isDark = state.theme === 'dark';
+    document.documentElement.classList.toggle('dark', isDark);
+    document.documentElement.classList.toggle('light', !isDark);
+  }, [state.theme]);
 
   return (
     <AppContext.Provider value={{ state, dispatch }}>

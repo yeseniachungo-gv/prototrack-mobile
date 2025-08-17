@@ -11,11 +11,7 @@ import { useAppContext } from '@/contexts/AppContext';
 function AppContent({ children }: { children: React.ReactNode }) {
   const { state, dispatch } = useAppContext();
 
-  useEffect(() => {
-    const isDark = state.theme === 'dark';
-    document.documentElement.classList.toggle('dark', isDark);
-    document.documentElement.classList.toggle('light', !isDark);
-  }, [state.theme]);
+  // The theme switching logic is now in AppProvider to ensure it runs on client side after hydration.
 
   const toggleTheme = () => {
     dispatch({ type: 'TOGGLE_THEME' });

@@ -3,19 +3,14 @@
 import React from 'react';
 import Header from '@/components/Header';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardTitle, CardHeader } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { useAppContext } from '@/contexts/AppContext';
 import { Day, FunctionEntry } from '@/lib/types';
 import FunctionCard from '@/components/FunctionCard';
 import FunctionSheet from '@/components/FunctionSheet';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { MoreHorizontal } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 
 
 export default function HomePage() {
@@ -24,6 +19,7 @@ export default function HomePage() {
 
   const [isSheetOpen, setSheetOpen] = React.useState(false);
   const [selectedFunction, setSelectedFunction] = React.useState<FunctionEntry | null>(null);
+  const [newFunctionName, setNewFunctionName] = React.useState('');
 
   const activeDay: Day | undefined = state.days.find(d => d.id === state.activeDayId);
 
@@ -54,12 +50,10 @@ export default function HomePage() {
   };
 
   const handleAddFunction = () => {
-    if (!activeDay) return;
-    const name = prompt('Nome da nova função:', 'Nova Função');
-    if (name) {
-      dispatch({ type: 'ADD_FUNCTION', payload: { dayId: activeDay.id, name } });
-      toast({ title: 'Função adicionada!' });
-    }
+    if (!activeDay || !newFunctionName.trim()) return;
+    dispatch({ type: 'ADD_FUNCTION', payload: { dayId: activeDay.id, name: newFunctionName.trim() } });
+    toast({ title: 'Função adicionada!' });
+    setNewFunctionName('');
   };
 
   const handleDeleteFunction = (funcId: string) => {
@@ -89,61 +83,72 @@ export default function HomePage() {
 
   return (
     <div className="p-4 md:p-6 space-y-4">
-      <Header title="Planilhas">
-         <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon"><MoreHorizontal /></Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent>
-                <DropdownMenuItem onSelect={handleAddDay}>Adicionar Novo Dia</DropdownMenuItem>
-            </DropdownMenuContent>
-        </DropdownMenu>
-      </Header>
+      <Header title="Planilhas" />
       
-      <div className="flex gap-2 overflow-x-auto pb-2 -mx-4 px-4">
-        {state.days.map(day => (
-          <Button 
-            key={day.id}
-            variant={day.id === state.activeDayId ? 'secondary' : 'outline'}
-            onClick={() => handleSetActiveDay(day.id)}
-            className="shrink-0"
-          >
-            {day.name}
-          </Button>
-        ))}
-      </div>
-
       <Card>
         <CardContent className="p-4 space-y-4">
-          <div className="space-y-2">
-             {activeDay?.functions.map(func => (
-                <FunctionCard
-                    key={func.id}
-                    func={func}
-                    onOpenSheet={handleOpenSheet}
-                    onEdit={handleEditFunction}
-                    onDelete={handleDeleteFunction}
-                />
-             ))}
-          </div>
-           {activeDay?.functions.length === 0 && (
-              <div className="text-center text-muted-foreground py-4">
-                Nenhuma função para este dia.
-              </div>
-            )}
-          <Button onClick={handleAddFunction} className="w-full">+ Adicionar Função</Button>
+          <ScrollArea className="w-full whitespace-nowrap">
+            <div className="flex gap-2 pb-2">
+              {state.days.map(day => (
+                <Button 
+                  key={day.id}
+                  variant={day.id === state.activeDayId ? 'secondary' : 'outline'}
+                  onClick={() => handleSetActiveDay(day.id)}
+                  className="shrink-0"
+                >
+                  {day.name}
+                </Button>
+              ))}
+               <Button onClick={handleAddDay} variant="outline" className="shrink-0">+ Adicionar Dia</Button>
+            </div>
+            <ScrollBar orientation="horizontal" />
+          </ScrollArea>
         </CardContent>
       </Card>
       
       <Card>
-        <CardContent className="p-4">
-            <CardTitle className="text-lg mb-4">Resumo do dia</CardTitle>
-            <div className="flex flex-wrap gap-2">
-                <div className="bg-secondary p-2 px-3 rounded-full text-sm font-semibold">Peças: {totalPieces}</div>
-                <div className="bg-secondary p-2 px-3 rounded-full text-sm font-semibold">Paradas: {downtimeMinutes} min</div>
-            </div>
+        <CardHeader>
+            <CardTitle className="text-lg">Resumo do dia</CardTitle>
+        </CardHeader>
+        <CardContent className="flex flex-wrap gap-2">
+            <div className="bg-secondary p-2 px-3 rounded-full text-sm font-semibold">Peças: {totalPieces}</div>
+            <div className="bg-secondary p-2 px-3 rounded-full text-sm font-semibold">Paradas: {downtimeMinutes} min</div>
+            <div className="bg-secondary p-2 px-3 rounded-full text-sm font-semibold">Funções: {activeDay?.functions.length || 0}</div>
         </CardContent>
       </Card>
+
+      <Card>
+         <CardHeader>
+            <CardTitle className="text-lg">Adicionar Nova Função</CardTitle>
+         </CardHeader>
+        <CardContent className="p-4 flex gap-2">
+            <Input 
+              placeholder="Nome da nova função (ex.: Costura)" 
+              value={newFunctionName}
+              onChange={(e) => setNewFunctionName(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleAddFunction()}
+            />
+            <Button onClick={handleAddFunction}>+ Adicionar</Button>
+        </CardContent>
+      </Card>
+
+      <div className="space-y-4">
+          {activeDay?.functions.length === 0 && (
+            <div className="text-center text-muted-foreground py-8">
+              Nenhuma função para este dia. Adicione uma acima.
+            </div>
+          )}
+          {activeDay?.functions.map(func => (
+            <FunctionCard
+                key={func.id}
+                func={func}
+                onOpenSheet={handleOpenSheet}
+                onEdit={handleEditFunction}
+                onDelete={handleDeleteFunction}
+            />
+          ))}
+      </div>
+      
 
       {selectedFunction && activeDay && (
         <FunctionSheet

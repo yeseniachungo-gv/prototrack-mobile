@@ -205,8 +205,8 @@ export default function FunctionSheet({ dayId, funcId, isOpen, onClose }: Functi
             <Button size="sm" variant="destructive" onClick={onClose} className="ml-auto">Fechar</Button>
           </div>
         </DialogHeader>
-        <ScrollArea className="w-full">
-          <div className="relative p-1">
+        <div className="relative flex-1">
+          <ScrollArea className="w-full h-full absolute">
             <table className="w-full border-collapse">
               <thead className="sticky top-0 bg-card z-10">
                 <tr>
@@ -312,8 +312,8 @@ export default function FunctionSheet({ dayId, funcId, isOpen, onClose }: Functi
                 </tr>
               </tbody>
             </table>
-          </div>
-        </ScrollArea>
+          </ScrollArea>
+        </div>
       </DialogContent>
     </Dialog>
   );
