@@ -3,6 +3,7 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { FunctionEntry } from "@/lib/types";
+import React from 'react';
 
 interface FunctionCardProps {
   func: FunctionEntry;
@@ -13,24 +14,29 @@ interface FunctionCardProps {
 
 const FunctionCard = ({ func, onOpenSheet, onEdit, onDelete }: FunctionCardProps) => {
   const totalPieces = func.observations.reduce((acc, obs) => acc + (obs.pieces || 0), 0);
-  const downtimeCount = func.observations.filter(o => o.type === 'downtime').length;
-  const defectCount = func.observations.filter(o => o.type === 'defect').length;
+  const totalHoursWithProduction = new Set(func.observations.filter(o => o.pieces > 0).map(o => o.hour)).size;
+  const pph = totalHoursWithProduction > 0 ? Math.round(totalPieces / totalHoursWithProduction) : 0;
 
   return (
     <Card>
       <CardContent className="p-4">
-        <div className="flex items-center gap-2">
-          <div className="font-bold flex-1">{func.name}</div>
-          <Button size="sm" variant="outline" onClick={() => onEdit(func.id)}>Editar</Button>
-          <Button size="sm" variant="destructive" onClick={() => onDelete(func.id)}>Excluir</Button>
-        </div>
-        <div className="text-muted-foreground text-sm mt-2">
-          {totalPieces} p/h • {downtimeCount} paradas • {defectCount} defeitos
-        </div>
-        <div className="mt-4">
-            <Button className="w-full" variant="default" onClick={() => onOpenSheet(func.id)}>
-              Abrir planilha
-            </Button>
+        <div className="flex items-start gap-4">
+          <div className="flex-1">
+            <h3 className="font-bold text-lg">{func.name}</h3>
+            <p className="text-muted-foreground text-sm mt-1">
+              {pph} p/h • dia: {totalPieces}
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2 justify-end">
+            <Button size="sm" variant="default" onClick={() => onOpenSheet(func.id)}>Entrar</Button>
+            <Button size="sm" variant="outline" onClick={() => onEdit(func.id)}>Duplicar</Button>
+            <Button size="sm" variant="outline" onClick={() => {
+                const updatedObservations = func.observations.map(obs => ({ ...obs, pieces: 0, reason:'', detail:'', type:'note' as const, duration:0 }));
+                // This is a placeholder for a dispatch call, you should implement the logic in your context
+                console.log("Zerar logic here", func.id);
+            }}>Zerar</Button>
+            <Button size="sm" variant="destructive" onClick={() => onDelete(func.id)}>Excluir</Button>
+          </div>
         </div>
       </CardContent>
     </Card>

@@ -194,7 +194,7 @@ export default function FunctionSheet({ dayId, funcId, isOpen, onClose }: Functi
   
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col p-2 sm:p-4">
+      <DialogContent className="max-w-4xl w-[95vw] h-[90vh] flex flex-col p-2 sm:p-4">
         <DialogHeader className="p-2 sm:p-0">
           <DialogTitle>Planilha — {day.name} — {func.name}</DialogTitle>
           <div className="flex flex-wrap gap-2 pt-4">
@@ -205,24 +205,24 @@ export default function FunctionSheet({ dayId, funcId, isOpen, onClose }: Functi
             <Button size="sm" variant="destructive" onClick={onClose} className="ml-auto">Fechar</Button>
           </div>
         </DialogHeader>
-        <div className="relative flex-1">
-          <ScrollArea className="w-full h-full absolute">
-            <table className="w-full border-collapse">
+        <div className="flex-1 relative mt-4">
+          <ScrollArea className="absolute inset-0 w-full h-full">
+            <table className="min-w-full border-collapse text-sm">
               <thead className="sticky top-0 bg-card z-10">
                 <tr>
-                  <th className="p-2 border font-bold min-w-[170px] text-left">Trabalhador</th>
+                  <th className="p-2 border font-bold min-w-[170px] text-left sticky left-0 bg-card z-20">Trabalhador</th>
                   {func.hours.map(hour => (
-                    <th key={hour} className="p-2 border font-bold min-w-[100px]">{hour}</th>
+                    <th key={hour} className="p-2 border font-bold min-w-[110px]">{hour}</th>
                   ))}
-                  <th className="p-2 border font-bold min-w-[80px]">Total</th>
+                  <th className="p-2 border font-bold min-w-[80px] sticky right-0 bg-card z-20">Total</th>
                 </tr>
               </thead>
               <tbody>
                 {func.workers.map((worker, workerIndex) => (
                   <tr key={workerIndex}>
-                    <td className="p-1 border align-middle">
+                    <td className="p-1 border align-middle sticky left-0 bg-card z-10">
                        <div className="flex items-center gap-1">
-                          <Button variant="ghost" size="icon" className="w-7 h-7" onClick={() => handleDeleteWorker(workerIndex)}>
+                          <Button variant="ghost" size="icon" className="w-7 h-7 shrink-0" onClick={() => handleDeleteWorker(workerIndex)}>
                             <span className="text-red-500 text-xl">×</span>
                           </Button>
                           <Input
@@ -241,7 +241,8 @@ export default function FunctionSheet({ dayId, funcId, isOpen, onClose }: Functi
                          <div className="flex items-center gap-1">
                            <Input
                              type="number"
-                             value={cellData?.pieces || 0}
+                             value={cellData?.pieces || ''}
+                             placeholder="0"
                              onChange={(e) => handlePieceChange(workerIndex, hourIndex, e.target.value)}
                              className="w-full text-center"
                              aria-label={`Peças para ${worker} às ${hour}`}
@@ -251,7 +252,7 @@ export default function FunctionSheet({ dayId, funcId, isOpen, onClose }: Functi
                               onOpenChange={(open) => setPopoverState({ open, worker, hour })}
                             >
                               <PopoverTrigger asChild>
-                                  <Button variant="ghost" size="icon" className={cn("w-7 h-7", hasObs && "bg-accent/30")}>
+                                  <Button variant="ghost" size="icon" className={cn("w-7 h-7 shrink-0", hasObs && "bg-accent/30")}>
                                       {cellData?.type === 'downtime' && <AlertTriangle className="w-4 h-4 text-orange-400" />}
                                       {cellData?.type === 'defect' && <Tag className="w-4 h-4 text-red-500" />}
                                       {(!cellData?.type || cellData.type === 'note') && <MessageSquare className={cn("w-4 h-4", hasObs ? 'text-accent' : 'text-muted-foreground/50')} />}
@@ -296,17 +297,17 @@ export default function FunctionSheet({ dayId, funcId, isOpen, onClose }: Functi
                        </td>
                        )
                     })}
-                     <td className="p-1 border align-middle text-center font-bold">
+                     <td className="p-1 border align-middle text-center font-bold sticky right-0 bg-card z-10">
                         {workerTotals[workerIndex]}
                      </td>
                   </tr>
                 ))}
                 <tr className="bg-muted">
-                    <td className="p-2 border font-bold text-left">Total/hora</td>
+                    <td className="p-2 border font-bold text-left sticky left-0 bg-muted z-20">Total/hora</td>
                     {hourlyTotals.map((total, index) => (
                         <td key={index} className="p-2 border font-bold text-center">{total}</td>
                     ))}
-                    <td className="p-2 border font-bold text-center bg-primary text-primary-foreground">
+                    <td className="p-2 border font-bold text-center bg-primary text-primary-foreground sticky right-0 z-20">
                         {hourlyTotals.reduce((a,b) => a+b, 0)}
                     </td>
                 </tr>
