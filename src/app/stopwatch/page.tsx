@@ -11,7 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { cn } from '@/lib/utils';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import {
   AlertDialog,
@@ -140,7 +140,7 @@ export default function StopwatchPage() {
                 ))}
              </div>
             </div>
-
+            
             <div className="space-y-2">
                 <Label>Controles</Label>
                 <div className="flex justify-start gap-2 flex-wrap">
@@ -154,7 +154,7 @@ export default function StopwatchPage() {
                         </Button>
                     )}
                     <Button variant="outline" onClick={handleReset} disabled={stopwatch.isRunning}>
-                        <RotateCcw className="mr-2"/> Zerar
+                        <RotateCcw className="mr-2"/> Reiniciar
                     </Button>
                 </div>
             </div>
@@ -171,7 +171,7 @@ export default function StopwatchPage() {
                 </div>
                  <div>
                     <Label htmlFor="auxiliaryTimePercent">Tempo auxiliar (%)</Label>
-                    <Input id="auxiliaryTimePercent" type="number" value={sessionDetails.auxiliaryTimePercent} onChange={handleInputChange} disabled={stopwatch.isRunning}/>
+                    <Input id="auxiliaryTimePercent" type="number" min="0" value={sessionDetails.auxiliaryTimePercent} onChange={handleInputChange} disabled={stopwatch.isRunning}/>
                 </div>
             </div>
 
@@ -266,7 +266,7 @@ export default function StopwatchPage() {
                         <TableHead>Função</TableHead>
                         <TableHead className="text-center">Peças</TableHead>
                         <TableHead className="text-center">Tempo</TableHead>
-                        <TableHead className="text-right">Média/h (Ajust.)</TableHead>
+                        <TableHead className="text-right">Média/h</TableHead>
                     </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -276,7 +276,7 @@ export default function StopwatchPage() {
                             <TableCell>{entry.functionName}</TableCell>
                             <TableCell className="text-center">{entry.pieces}</TableCell>
                             <TableCell className="text-center font-mono">{formatTime(entry.duration)}</TableCell>
-                            <TableCell className="text-right font-mono">{entry.adjustedAveragePerHour.toFixed(0)}</TableCell>
+                            <TableCell className="text-right font-mono">{entry.averagePerHour.toFixed(0)}</TableCell>
                         </TableRow>
                     ))}
                 </TableBody>
