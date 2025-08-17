@@ -76,8 +76,12 @@ export default function HomePage() {
   };
 
   const formatDay = (id: string) => {
-    const date = new Date(id + 'T00:00:00'); // Assume local timezone
-    return format(date, "EEE, dd 'de' MMM. 'de' yyyy", { locale: ptBR });
+    try {
+        const date = new Date(id + 'T00:00:00'); // Assume local timezone
+        return format(date, "EEE, dd 'de' MMM. 'de' yyyy", { locale: ptBR });
+    } catch (e) {
+        return "Data inválida";
+    }
   };
   
   const daySummary = useMemo(() => {
@@ -135,7 +139,7 @@ export default function HomePage() {
         <CardContent className="p-4 space-y-4">
           <ScrollArea className="w-full whitespace-nowrap">
             <div className="flex gap-2 pb-2">
-              {state.days.sort((a,b) => a.id.localeCompare(b.id)).map(day => (
+              {[...state.days].sort((a,b) => a.id.localeCompare(b.id)).map(day => (
                 <Button 
                   key={day.id}
                   variant={day.id === state.activeDayId ? 'secondary' : 'outline'}
@@ -144,7 +148,6 @@ export default function HomePage() {
                 >
                   <div className="flex items-center gap-2">
                     <span>{formatDay(day.id)}</span>
-                    {day.id === state.activeDayId && <span className="text-red-500 font-bold">×</span>}
                   </div>
                 </Button>
               ))}

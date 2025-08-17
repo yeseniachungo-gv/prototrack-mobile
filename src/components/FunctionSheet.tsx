@@ -170,7 +170,7 @@ export default function FunctionSheet({ dayId, funcId, isOpen, onClose }: Functi
 
   const handleClearSheet = () => {
     if (!day || !func || !confirm("Zerar todos os valores desta planilha?")) return;
-    const updatedObservations = func.observations.map(obs => ({ ...obs, pieces: 0, reason:'', detail:'', type:'note', duration:0 }));
+    const updatedObservations = func.observations.map(obs => ({ ...obs, pieces: 0, reason:'', detail:'', type:'note' as const, duration:0 }));
     const updatedFunction = { ...func, observations: updatedObservations };
     dispatch({ type: 'UPDATE_FUNCTION', payload: { dayId: day.id, functionData: updatedFunction }});
     toast({ title: "Planilha zerada." });
@@ -196,7 +196,7 @@ export default function FunctionSheet({ dayId, funcId, isOpen, onClose }: Functi
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-4xl w-[95vw] h-[90vh] flex flex-col p-2 sm:p-4">
         <DialogHeader className="p-2 sm:p-0">
-          <DialogTitle>Planilha — {day.name} — {func.name}</DialogTitle>
+          <DialogTitle>Planilha — {day.id} — {func.name}</DialogTitle>
           <div className="flex flex-wrap gap-2 pt-4">
             <Button size="sm" onClick={handleAddWorker}>+ Trabalhador</Button>
             <Button size="sm" onClick={() => handleAddHour(false)}>+ Próx. Hora</Button>

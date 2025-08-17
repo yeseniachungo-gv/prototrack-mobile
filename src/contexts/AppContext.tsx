@@ -82,16 +82,17 @@ const appReducer = (state: AppState, action: Action): AppState => {
         
         case 'ADD_DAY': {
             const { dayId } = action.payload;
+            if (draft.days.find(d => d.id === dayId)) {
+                break; // Do nothing if day already exists
+            }
             const formattedDate = dayId.slice(5).split('-').reverse().join('/');
             draft.days.push({
                 id: dayId,
                 name: `Dia ${formattedDate}`,
-                date: new Date(dayId).toISOString(),
+                date: new Date(dayId + 'T00:00:00').toISOString(),
                 functions: [],
                 history: [],
             });
-            // Sort days by date
-            draft.days.sort((a,b) => a.id.localeCompare(b.id));
             draft.activeDayId = dayId;
             break;
         }
@@ -137,12 +138,12 @@ const appReducer = (state: AppState, action: Action): AppState => {
           if (day) {
             const func = day.functions.find(f => f.id === functionId);
             if (func) {
-              const obsIndex = func.observations.findIndex(o => o.id === observation.id);
+              const obsIndex = func.observations.findIndex(o => o.worker === observation.worker && o.hour === observation.hour);
               if (obsIndex !== -1) {
                 // Ensure values are numbers
                 const pieces = Number(observation.pieces) || 0;
                 const duration = Number(observation.duration) || 0;
-                func.observations[obsIndex] = {...observation, pieces, duration};
+                func.observations[obsIndex] = {...func.observations[obsIndex], ...observation, pieces, duration};
               } else {
                 func.observations.push(observation);
               }
