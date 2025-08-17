@@ -30,9 +30,16 @@ export default function SettingsPage() {
       </Card>
       
       <Card>
-        <CardHeader><CardTitle>AI</CardTitle></CardHeader>
-        <CardContent className="flex flex-wrap gap-2">
-          <p className="text-muted-foreground w-full mb-2">As funcionalidades de IA serão implementadas aqui.</p>
+        <CardHeader><CardTitle>Perfis</CardTitle></CardHeader>
+        <CardContent>
+          <p className="text-muted-foreground w-full mb-2">A gestão de perfis (estilo Netflix) será implementada aqui.</p>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader><CardTitle>Zona do Admin</CardTitle></CardHeader>
+        <CardContent>
+          <p className="text-muted-foreground w-full mb-2">A área para definir senhas de administrador ficará aqui.</p>
         </CardContent>
       </Card>
     </div>

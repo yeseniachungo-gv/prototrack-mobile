@@ -2,27 +2,36 @@
 
 import React from 'react';
 import Header from '@/components/Header';
-import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { useAppContext } from '@/contexts/AppContext';
 
 export default function HomePage() {
-  const { state } = useAppContext();
 
   return (
     <div className="p-4 md:p-6 space-y-4">
-      <Header title="Planilhas" />
+      <Header title="Hub do Dia" />
+      
       <Card>
         <CardHeader>
-          <CardTitle>Bem-vindo ao ProtoTrack</CardTitle>
+          <CardTitle>Resumo do Dia</CardTitle>
         </CardHeader>
         <CardContent>
           <p className="text-muted-foreground">
-            Estamos prontos para começar do zero. A base da aplicação está limpa e funcional.
+            Aqui ficará o resumo do dia com os principais KPIs.
           </p>
-          <p className="mt-4">O tema atual é: <b>{state.theme}</b></p>
         </CardContent>
       </Card>
+
+       <Card>
+        <CardHeader>
+          <CardTitle>Funções</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-muted-foreground">
+            A lista de funções do dia será exibida aqui.
+          </p>
+        </CardContent>
+      </Card>
+
     </div>
   );
 }

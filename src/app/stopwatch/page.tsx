@@ -13,7 +13,15 @@ export default function StopwatchPage() {
           <CardTitle>Cronômetro</CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-muted-foreground">A funcionalidade de cronômetro será implementada aqui.</p>
+          <p className="text-muted-foreground">O relógio grande e os controles do cronômetro serão implementados aqui.</p>
+        </CardContent>
+      </Card>
+       <Card>
+        <CardHeader>
+          <CardTitle>Histórico do Dia</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-muted-foreground">A tabela com o histórico de medições do dia aparecerá aqui.</p>
         </CardContent>
       </Card>
     </div>
