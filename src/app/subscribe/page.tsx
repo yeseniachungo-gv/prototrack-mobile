@@ -2,7 +2,7 @@
 "use client";
 
 import React from 'react';
-import { Check, Crown, Zap, Shield, Star, Users, BrainCircuit } from 'lucide-react';
+import { Check, Crown, Zap, Shield, Star, Users, BrainCircuit, FileText, CloudCog, MessageSquare, X } from 'lucide-react';
 import Header from '@/components/Header';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -17,10 +17,11 @@ const plans = {
         name: 'Básico',
         price: 'R$ 29',
         features: [
-            { text: 'Até 3 perfis de equipe', icon: Users },
-            { text: 'Controle de produção diário', icon: Check },
-            { text: 'Cronômetro de produção', icon: Check },
-            { text: 'Histórico de medições', icon: Check },
+            { text: 'Até 3 perfis de equipe', icon: Users, included: true },
+            { text: 'Controle de produção diário', icon: Check, included: true },
+            { text: 'Cronômetro de produção', icon: Check, included: true },
+            { text: 'Mural de Comunicados', icon: MessageSquare, included: false },
+            { text: 'Relatórios com Inteligência Artificial', icon: BrainCircuit, included: false },
         ],
         icon: Shield,
     },
@@ -28,10 +29,11 @@ const plans = {
         name: 'Pro',
         price: 'R$ 79',
         features: [
-            { text: 'Até 6 perfis de equipe', icon: Users },
-            { text: 'Todas as funções do Básico', icon: Check },
-            { text: 'Relatórios com Inteligência Artificial', icon: BrainCircuit },
-            { text: 'Análises consolidadas de equipes', icon: BrainCircuit },
+            { text: 'Até 6 perfis de equipe', icon: Users, included: true },
+            { text: 'Todas as funções do Básico', icon: Check, included: true },
+            { text: 'Mural de Comunicados', icon: MessageSquare, included: true },
+            { text: 'Relatórios com Inteligência Artificial', icon: BrainCircuit, included: true },
+            { text: 'Análises consolidadas de equipes', icon: BrainCircuit, included: true },
         ],
         icon: Zap,
     },
@@ -39,10 +41,11 @@ const plans = {
         name: 'Premium',
         price: 'R$ 149',
         features: [
-            { text: 'Até 10 perfis de equipe', icon: Users },
-            { text: 'Todas as funções do Pro', icon: Check },
-            { text: 'Suporte prioritário', icon: Star },
-            { text: 'Funcionalidades futuras em primeira mão', icon: Star },
+            { text: 'Até 10 perfis de equipe', icon: Users, included: true },
+            { text: 'Todas as funções do Pro', icon: Check, included: true },
+            { text: 'Exportação de relatórios em PDF', icon: FileText, included: true },
+            { text: 'Backup automático na nuvem (simulado)', icon: CloudCog, included: true },
+            { text: 'Suporte prioritário', icon: Star, included: true },
         ],
         icon: Crown,
     }
@@ -92,8 +95,8 @@ export default function SubscribePage() {
                             <CardContent className="flex-1 space-y-4">
                                 <ul className="space-y-3">
                                     {planData.features.map((feature, index) => (
-                                        <li key={index} className="flex items-start gap-3">
-                                            <feature.icon className="w-5 h-5 text-green-500 mt-0.5 flex-shrink-0" />
+                                        <li key={index} className={cn("flex items-start gap-3", !feature.included && "text-muted-foreground line-through")}>
+                                            <feature.icon className={cn("w-5 h-5 mt-0.5 flex-shrink-0", feature.included ? "text-green-500" : "text-muted-foreground")} />
                                             <span>{feature.text}</span>
                                         </li>
                                     ))}

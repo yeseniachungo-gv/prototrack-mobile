@@ -9,16 +9,16 @@ import { useAppContext } from '@/contexts/AppContext';
 import { useRouter } from 'next/navigation';
 
 const navItems = [
-  { href: '/dashboard', label: 'Dashboard', icon: Home },
-  { href: '/stopwatch', label: 'Cronômetro', icon: Timer },
-  { href: '/announcements', label: 'Mural', icon: MessageSquare },
-  { href: '/reports', label: 'Relatórios', icon: FileDown },
-  { href: '/settings', label: 'Config.', icon: Settings },
+  { href: '/dashboard', label: 'Dashboard', icon: Home, plans: ['basic', 'pro', 'premium'] },
+  { href: '/stopwatch', label: 'Cronômetro', icon: Timer, plans: ['basic', 'pro', 'premium'] },
+  { href: '/announcements', label: 'Mural', icon: MessageSquare, plans: ['pro', 'premium'] },
+  { href: '/reports', label: 'Relatórios', icon: FileDown, plans: ['basic', 'pro', 'premium'] },
+  { href: '/settings', label: 'Config.', icon: Settings, plans: ['basic', 'pro', 'premium'] },
 ];
 
 export default function BottomNav() {
   const pathname = usePathname();
-  const { dispatch } = useAppContext();
+  const { state, dispatch } = useAppContext();
   const router = useRouter();
 
   const isSelectionOrAdminPage = pathname === '/' || pathname.startsWith('/admin') || pathname.startsWith('/login');
@@ -33,6 +33,8 @@ export default function BottomNav() {
     router.push('/');
   };
 
+  const availableNavItems = navItems.filter(item => item.plans.includes(state.plan));
+
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-10 mx-auto max-w-4xl border-t bg-background/80 backdrop-blur-sm">
       <div className="flex h-16 items-center justify-around">
@@ -42,7 +44,7 @@ export default function BottomNav() {
                 Perfis
             </span>
         </Link>
-        {navItems.map((item) => {
+        {availableNavItems.map((item) => {
           const isActive = pathname.startsWith(item.href);
           return (
             <Link key={item.href} href={item.href} className={cn("flex flex-col items-center gap-1 text-muted-foreground transition-colors hover:text-primary w-20 text-center", isActive && 'text-primary')}>
