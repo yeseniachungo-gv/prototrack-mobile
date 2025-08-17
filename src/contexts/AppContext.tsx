@@ -41,10 +41,13 @@ type Action =
   | { type: 'UNDO_PIECE', payload: { profileId: string } }
   | { type: 'SET_STOPWATCH_MODE', payload: { profileId: string, mode: 'countdown' | 'countup' } }
   | { type: 'CLEAR_STOPWATCH_HISTORY', payload: { profileId: string } }
-  | { type: 'UPDATE_STOPWATCH_STATE', payload: { profileId: string, stopwatchState: StopwatchState } };
+  | { type: 'UPDATE_STOPWATCH_STATE', payload: { profileId: string, stopwatchState: StopwatchState } }
+  // Admin actions
+  | { type: 'ADMIN_LOGIN', payload: boolean };
 
 
-const APP_STATE_KEY = 'giratempo-state-v4-multi-stopwatch';
+const APP_STATE_KEY = 'giratempo-state-v5-admin-login';
+const ADMIN_PIN = "0000"; // Hardcoded admin PIN
 
 const createDefaultStopwatchState = (): StopwatchState => ({
     mode: 'countdown',
@@ -106,6 +109,8 @@ function getInitialState(): AppState {
     profiles: [createDefaultProfile('Perfil Padrão')],
     activeProfileId: null, 
     currentProfileForLogin: null,
+    isAdminAuthenticated: false,
+    adminPin: ADMIN_PIN,
     theme: 'dark',
     announcements: [],
   };
@@ -124,10 +129,10 @@ const appReducer = produce((draft: AppState, action: Action) => {
     const saveStopwatchHistory = (profile: Profile) => {
         const { session, mode, initialTime, time, pieces } = profile.stopwatch;
         
-        // Duration for PPH is the total standard time for countdowns, or final elapsed time for countups.
-        const calculationDuration = mode === 'countdown' && initialTime > 0 ? initialTime : time;
+        const calculationDuration = mode === 'countdown' && initialTime > 0
+            ? initialTime
+            : time;
 
-        // Actual elapsed time
         const actualDuration = mode === 'countdown' ? initialTime - time : time;
         
         if (actualDuration > 0 || pieces > 0) {
@@ -165,6 +170,11 @@ const appReducer = produce((draft: AppState, action: Action) => {
             break;
         }
 
+        case 'ADMIN_LOGIN': {
+            draft.isAdminAuthenticated = action.payload;
+            break;
+        }
+
         // --- Profile Actions ---
         case 'ADD_PROFILE': {
             if (!draft.profiles.find(p => p.name.toLowerCase() === action.payload.toLowerCase())) {
@@ -180,6 +190,7 @@ const appReducer = produce((draft: AppState, action: Action) => {
                     draft.profiles.splice(profileIndex, 1);
                     if (draft.activeProfileId === action.payload) {
                         draft.activeProfileId = null;
+                        draft.isAdminAuthenticated = false;
                     }
                 }
             }
@@ -188,6 +199,9 @@ const appReducer = produce((draft: AppState, action: Action) => {
         case 'SET_ACTIVE_PROFILE': {
             draft.activeProfileId = action.payload;
             draft.currentProfileForLogin = null;
+            if (action.payload) { // if logging into a profile, log out from admin
+                draft.isAdminAuthenticated = false;
+            }
             break;
         }
         case 'SET_CURRENT_PROFILE_FOR_LOGIN': {
@@ -383,8 +397,6 @@ const appReducer = produce((draft: AppState, action: Action) => {
                 }
                 case 'DELETE_MASTER_DATA': {
                     const { type, id } = action.payload;
-                    // Note: This only deletes from the master list. It does not cascade delete data.
-                    // This is intentional to preserve historical data integrity.
                     if (type === 'workers') {
                         activeProfile.masterWorkers = activeProfile.masterWorkers.filter(i => i.id !== id);
                     } else {
@@ -552,7 +564,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (savedStateString) {
         const savedState = JSON.parse(savedStateString);
         
-        // --- Migration & Validation ---
         savedState.profiles.forEach((p: Profile) => {
           if (!p.id) p.id = uuidv4();
           if (!p.pin) p.pin = '1234';
@@ -567,7 +578,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
         savedState.activeProfileId = null;
         savedState.currentProfileForLogin = null;
+        savedState.isAdminAuthenticated = false; // Always start as not authenticated
         if (!savedState.announcements) savedState.announcements = [];
+        if (!savedState.adminPin) savedState.adminPin = ADMIN_PIN;
         
         return savedState;
       }

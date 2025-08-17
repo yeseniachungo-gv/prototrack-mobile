@@ -23,7 +23,7 @@ export default function ProfileSelectionPage() {
 
   const handleGoToAdmin = (e: React.MouseEvent) => {
     e.stopPropagation();
-    router.push('/admin');
+    router.push('/admin/login');
   };
 
   const topPerformerId = useMemo(() => {

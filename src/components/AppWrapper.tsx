@@ -18,7 +18,7 @@ function AppContent({ children }: { children: React.ReactNode }) {
     dispatch({ type: 'TOGGLE_THEME' });
   };
   
-  const showBackButton = !['/', '/admin', '/login'].some(p => pathname.startsWith(p));
+  const showBackButton = !['/', '/admin', '/admin/login', '/login'].some(p => p === pathname);
   
   return (
     <div className="relative mx-auto flex min-h-screen max-w-4xl flex-col font-body">

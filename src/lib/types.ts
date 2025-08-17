@@ -85,6 +85,8 @@ export interface AppState {
   profiles: Profile[];
   activeProfileId: string | null;
   currentProfileForLogin: string | null; // Used to know which profile is trying to log in
+  isAdminAuthenticated: boolean;
+  adminPin: string;
   theme: 'light' | 'dark';
   announcements: Announcement[];
 }
