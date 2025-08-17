@@ -268,17 +268,38 @@ const appReducer = produce((draft: AppState, action: Action) => {
             break;
         }
         case 'TICK': {
-            if (draft.stopwatch.isRunning) {
-                if (draft.stopwatch.mode === 'countdown') {
-                    draft.stopwatch.time -= 1;
-                    if (draft.stopwatch.time <= 0) {
-                        draft.stopwatch.time = 0;
-                        // Dispatch STOP_TIMER action when countdown finishes
-                        return appReducer(draft, { type: 'STOP_TIMER' });
+            if (!draft.stopwatch.isRunning) break;
+
+            if (draft.stopwatch.mode === 'countdown') {
+                draft.stopwatch.time -= 1;
+                if (draft.stopwatch.time <= 0) {
+                    draft.stopwatch.time = 0;
+                    draft.stopwatch.isRunning = false; // Stop the timer
+                    
+                    // Logic from STOP_TIMER, duplicated here to avoid chained dispatches
+                    const { operator, functionName, auxiliaryTimePercent } = draft.stopwatch.session;
+                    const duration = draft.stopwatch.initialTime;
+                    if (duration > 0 || draft.stopwatch.pieces > 0) {
+                      const pieces = draft.stopwatch.pieces;
+                      const pph = duration > 0 ? (pieces / duration) * 3600 : 0;
+                      const effectiveTimePercentage = 1 - (auxiliaryTimePercent / 100);
+                      const adjustedPph = effectiveTimePercentage > 0 ? pph / effectiveTimePercentage : 0;
+                      const newEntry: StopwatchHistoryEntry = {
+                          id: uuidv4(),
+                          endTime: new Date().toISOString(),
+                          duration, 
+                          pieces,
+                          workerName: operator,
+                          functionName,
+                          auxiliaryTimePercent,
+                          averagePerHour: pph,
+                          adjustedAveragePerHour: adjustedPph,
+                      };
+                      draft.stopwatch.history.unshift(newEntry);
                     }
-                } else { // countup
-                    draft.stopwatch.time += 1;
                 }
+            } else { // countup
+                draft.stopwatch.time += 1;
             }
             break;
         }
