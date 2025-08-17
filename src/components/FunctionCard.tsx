@@ -4,7 +4,10 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { FunctionEntry } from "@/lib/types";
-import { Clock, Star, TrendingUp, User } from "lucide-react";
+import { Clock, Star, Trash2, TrendingUp, User } from "lucide-react";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from './ui/alert-dialog';
+import { useAppContext } from "@/contexts/AppContext";
+import { useToast } from "@/hooks/use-toast";
 
 interface FunctionCardProps {
   func: FunctionEntry;
@@ -12,6 +15,8 @@ interface FunctionCardProps {
 }
 
 const FunctionCard = ({ func, onOpenSheet }: FunctionCardProps) => {
+  const { state, dispatch } = useAppContext();
+  const { toast } = useToast();
 
   const totalPieces = Object.values(func.pieces).reduce((sum, pieces) => sum + pieces, 0);
   const pph = func.hours.length > 0 ? totalPieces / func.hours.length : 0;
@@ -34,6 +39,17 @@ const FunctionCard = ({ func, onOpenSheet }: FunctionCardProps) => {
     return current[1] > top[1] ? current : top;
   }, ["N/A", 0]);
 
+  const handleDeleteFunction = () => {
+    if (state.activeDayId) {
+      dispatch({ type: 'DELETE_FUNCTION', payload: { dayId: state.activeDayId, functionId: func.id } });
+      toast({
+        title: "Função Removida",
+        description: `A função "${func.name}" foi removida com sucesso.`,
+        variant: "destructive"
+      });
+    }
+  };
+
 
   return (
     <Card>
@@ -41,7 +57,28 @@ const FunctionCard = ({ func, onOpenSheet }: FunctionCardProps) => {
         <div className="flex flex-col gap-4">
           <div className="flex items-start justify-between">
             <h3 className="font-bold text-lg">{func.name}</h3>
-            <Button size="sm" variant="default" onClick={() => onOpenSheet(func.id)}>Entrar</Button>
+            <div className="flex gap-2">
+              <Button size="sm" variant="default" onClick={() => onOpenSheet(func.id)}>Entrar</Button>
+               <AlertDialog>
+                <AlertDialogTrigger asChild>
+                   <Button size="sm" variant="destructive" className="h-9 w-9 p-0">
+                      <Trash2 className="h-4 w-4"/>
+                   </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Esta ação não pode ser desfeita. Isso excluirá permanentemente a função "{func.name}" e todos os seus dados para este dia.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleDeleteFunction}>Excluir</AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </div>
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
             <div className="flex items-center gap-2 text-muted-foreground">
@@ -80,5 +117,3 @@ const FunctionCard = ({ func, onOpenSheet }: FunctionCardProps) => {
 };
 
 export default FunctionCard;
-
-    

@@ -97,6 +97,7 @@ const appReducer = (state: AppState, action: Action): AppState => {
         if (!draft.days.find(d => d.id === newDayId)) {
           const functionsTemplate: FunctionEntry[] = JSON.parse(JSON.stringify(lastDayInState.functions));
           functionsTemplate.forEach((func) => {
+            func.id = uuidv4();
             func.pieces = {};
             func.observations = {};
           });
@@ -128,35 +129,35 @@ const appReducer = (state: AppState, action: Action): AppState => {
       case 'TOGGLE_TIMER': {
           const { operator, functionName, auxiliaryTimePercent } = action.payload;
           
-          if (draft.stopwatch.mode === 'countdown' && draft.stopwatch.time === 0) return;
+          if (draft.stopwatch.mode === 'countdown' && draft.stopwatch.time === 0 && !draft.stopwatch.isRunning) return;
 
-          draft.stopwatch.isRunning = !draft.stopwatch.isRunning;
+          const wasRunning = draft.stopwatch.isRunning;
+          draft.stopwatch.isRunning = !wasRunning;
           
           // Se parou de correr, salva o histórico
-          if (!draft.stopwatch.isRunning && (draft.stopwatch.pieces > 0 || draft.stopwatch.mode === 'countup')) {
+          if (wasRunning) {
               const duration = draft.stopwatch.mode === 'countdown' 
                   ? draft.stopwatch.initialTime - draft.stopwatch.time
                   : draft.stopwatch.time;
               
-              if (duration === 0) return; // Não salva se o tempo for 0
-              
-              const pieces = draft.stopwatch.pieces;
-              
-              const pph = duration > 0 ? (pieces / duration) * 3600 : 0;
-              const effectiveTime = duration * (1 - (auxiliaryTimePercent / 100));
-              const adjustedPph = effectiveTime > 0 ? (pieces / effectiveTime) * 3600 : pph;
+              if (duration > 0 || draft.stopwatch.pieces > 0) {
+                 const pieces = draft.stopwatch.pieces;
+                 const pph = duration > 0 ? (pieces / duration) * 3600 : 0;
+                 const effectiveTimePercentage = 1 - (auxiliaryTimePercent / 100);
+                 const adjustedPph = pph / effectiveTimePercentage;
 
-              draft.stopwatch.history.unshift({
-                  id: uuidv4(),
-                  endTime: new Date().toISOString(),
-                  duration: duration, 
-                  pieces: pieces,
-                  workerName: operator,
-                  functionName: functionName,
-                  auxiliaryTimePercent: auxiliaryTimePercent,
-                  averagePerHour: pph,
-                  adjustedAveragePerHour: adjustedPph,
-              });
+                 draft.stopwatch.history.unshift({
+                     id: uuidv4(),
+                     endTime: new Date().toISOString(),
+                     duration: draft.stopwatch.mode === 'countdown' ? draft.stopwatch.initialTime : duration,
+                     pieces: pieces,
+                     workerName: operator,
+                     functionName: functionName,
+                     auxiliaryTimePercent: auxiliaryTimePercent,
+                     averagePerHour: pph,
+                     adjustedAveragePerHour: adjustedPph,
+                 });
+              }
               
               // Resetar para a próxima medição
               if (draft.stopwatch.mode === 'countdown') {
@@ -189,7 +190,7 @@ const appReducer = (state: AppState, action: Action): AppState => {
                       draft.stopwatch.time -= 1;
                       if (draft.stopwatch.time === 0) {
                           draft.stopwatch.isRunning = false;
-                          // O toggle fará o salvamento do histórico
+                          // A finalização e o salvamento são acionados pelo próximo TOGGLE_TIMER
                       }
                   }
               } else { // countup
@@ -203,7 +204,10 @@ const appReducer = (state: AppState, action: Action): AppState => {
     const day = draft.days.find(d => d.id === draft.activeDayId);
     if (day) {
         const { payload } = action as any; 
-        const func = payload?.functionId ? day.functions.find(f => f.id === payload.functionId) : undefined;
+        let func: FunctionEntry | undefined;
+        if (payload?.functionId) {
+            func = day.functions.find(f => f.id === payload.functionId)
+        }
         
         switch (action.type) {
             case 'ADD_FUNCTION':
@@ -236,6 +240,13 @@ const appReducer = (state: AppState, action: Action): AppState => {
             case 'DELETE_WORKER_FROM_FUNCTION':
                 if (func) {
                     func.workers = func.workers.filter(w => w !== payload.workerName);
+                    // Limpar dados associados
+                    Object.keys(func.pieces).forEach(key => {
+                      if (key.startsWith(`${payload.workerName}_`)) delete func.pieces[key];
+                    });
+                     Object.keys(func.observations).forEach(key => {
+                      if (key.startsWith(`${payload.workerName}_`)) delete func.observations[key];
+                    });
                 }
                 break;
             case 'ADD_HOUR_TO_FUNCTION':
@@ -402,5 +413,3 @@ export const useAppContext = () => {
   }
   return context;
 };
-
-    
