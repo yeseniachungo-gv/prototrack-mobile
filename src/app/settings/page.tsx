@@ -1,19 +1,29 @@
+
 "use client";
 
 import React from 'react';
 import Header from '@/components/Header';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { useAppContext } from '@/contexts/AppContext';
+import { Moon, Sun, Palette, Bell, HelpCircle, Shield, Users } from 'lucide-react';
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion"
+
 
 export default function SettingsPage() {
   const { toast } = useToast();
   const { state, dispatch } = useAppContext();
   
   const toggleTheme = () => {
+    const newTheme = state.theme === 'dark' ? 'light' : 'dark';
     dispatch({ type: 'TOGGLE_THEME' });
-    toast({ title: `Tema alterado para ${state.theme === 'dark' ? 'claro' : 'escuro'}`});
+    toast({ title: `Tema alterado para ${newTheme}`});
   }
 
   return (
@@ -21,25 +31,96 @@ export default function SettingsPage() {
       <Header title="Configurações" />
 
       <Card>
-        <CardHeader><CardTitle>Aparência</CardTitle></CardHeader>
-        <CardContent className="flex flex-wrap gap-2">
-          <Button onClick={toggleTheme}>
-            Mudar para tema {state.theme === 'dark' ? 'Claro' : 'Escuro'}
-          </Button>
+        <CardHeader>
+          <CardTitle>Geral</CardTitle>
+        </CardHeader>
+        <CardContent>
+           <Accordion type="single" collapsible className="w-full">
+            <AccordionItem value="item-1">
+              <AccordionTrigger>
+                <div className="flex items-center gap-3">
+                  <Palette /> Aparência
+                </div>
+              </AccordionTrigger>
+              <AccordionContent className="flex flex-col gap-4 pt-4">
+                <div className="flex items-center justify-between p-2 rounded-lg">
+                  <p className="font-medium">Tema Escuro/Claro</p>
+                  <Button onClick={toggleTheme} variant="outline" size="sm">
+                    {state.theme === 'dark' ? <Sun className="mr-2 h-4 w-4" /> : <Moon className="mr-2 h-4 w-4" />}
+                    Mudar para {state.theme === 'dark' ? 'Claro' : 'Escuro'}
+                  </Button>
+                </div>
+              </AccordionContent>
+            </AccordionItem>
+            <AccordionItem value="item-2">
+              <AccordionTrigger>
+                 <div className="flex items-center gap-3">
+                    <Users /> Gerenciamento de Perfis
+                </div>
+              </AccordionTrigger>
+              <AccordionContent className="pt-4 text-muted-foreground">
+                Em breve: Adicione e gerencie perfis de usuário para diferentes equipes ou gestores, cada um com seus próprios dados e configurações.
+              </AccordionContent>
+            </AccordionItem>
+            <AccordionItem value="item-3">
+              <AccordionTrigger>
+                 <div className="flex items-center gap-3">
+                    <Shield /> Acesso e Segurança
+                </div>
+              </AccordionTrigger>
+              <AccordionContent className="pt-4 text-muted-foreground">
+                 Em breve: Defina senhas de administrador, gerencie permissões de perfil e configure o bloqueio por PIN.
+              </AccordionContent>
+            </AccordionItem>
+            <AccordionItem value="item-4">
+              <AccordionTrigger>
+                 <div className="flex items-center gap-3">
+                    <Bell /> Notificações
+                </div>
+              </AccordionTrigger>
+              <AccordionContent className="pt-4 text-muted-foreground">
+                Em breve: Configure alertas sonoros, notificações push para metas atingidas e resumos diários por e-mail.
+              </AccordionContent>
+            </AccordionItem>
+          </Accordion>
         </CardContent>
       </Card>
       
       <Card>
-        <CardHeader><CardTitle>Perfis</CardTitle></CardHeader>
-        <CardContent>
-          <p className="text-muted-foreground w-full mb-2">A gestão de perfis (estilo Netflix) será implementada aqui.</p>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader><CardTitle>Zona do Admin</CardTitle></CardHeader>
-        <CardContent>
-          <p className="text-muted-foreground w-full mb-2">A área para definir senhas de administrador ficará aqui.</p>
+        <CardHeader>
+          <CardTitle>Ajuda & Suporte</CardTitle>
+        </CardHeader>
+         <CardContent>
+           <Accordion type="single" collapsible className="w-full">
+            <AccordionItem value="ajuda-1">
+              <AccordionTrigger>
+                <div className="flex items-center gap-3">
+                  <HelpCircle /> Central de Ajuda
+                </div>
+              </AccordionTrigger>
+              <AccordionContent className="pt-4 space-y-2 text-muted-foreground">
+                <p>Bem-vindo ao GiraTempo! Aqui estão algumas dicas:</p>
+                <ul className="list-disc pl-5">
+                    <li>Use a aba <strong>Planilhas</strong> para gerenciar suas funções de produção diárias.</li>
+                    <li>O <strong>Cronômetro</strong> é ideal para medições de tempo precisas, nos modos progressivo e regressivo.</li>
+                    <li>Exporte seus dados ou faça backups na aba <strong>Exportar</strong>.</li>
+                    <li>Use as <strong>Sugestões Inteligentes</strong> (✨) para agilizar a criação de novas funções.</li>
+                </ul>
+              </AccordionContent>
+            </AccordionItem>
+             <AccordionItem value="ajuda-2">
+              <AccordionTrigger>Termos de Serviço</AccordionTrigger>
+              <AccordionContent className="pt-4 text-muted-foreground">
+                Em breve: O documento completo com os Termos de Serviço e a Política de Privacidade estará disponível aqui.
+              </AccordionContent>
+            </AccordionItem>
+             <AccordionItem value="ajuda-3">
+              <AccordionTrigger>Falar com o Suporte</AccordionTrigger>
+              <AccordionContent className="pt-4 text-muted-foreground">
+                Em breve: Entre em contato conosco por e-mail ou chat para obter ajuda.
+              </AccordionContent>
+            </AccordionItem>
+          </Accordion>
         </CardContent>
       </Card>
     </div>

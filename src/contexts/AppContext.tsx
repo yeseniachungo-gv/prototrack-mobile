@@ -25,7 +25,8 @@ type Action =
   | { type: 'RESET_TIMER' }
   | { type: 'TICK' }
   | { type: 'ADD_PIECE', payload: number }
-  | { type: 'SET_STOPWATCH_MODE', payload: 'countdown' | 'countup' };
+  | { type: 'SET_STOPWATCH_MODE', payload: 'countdown' | 'countup' }
+  | { type: 'UPDATE_DAILY_GOAL', payload: { goal: number; functionId: string | null } };
 
 
 const APP_STATE_KEY = 'prototrack-state-v2';
@@ -58,6 +59,10 @@ function getInitialState(): AppState {
         pieces: 0,
         isRunning: false,
         history: []
+    },
+    dailyGoal: {
+      target: 5000,
+      functionId: null,
     }
   };
 }
@@ -109,6 +114,10 @@ const appReducer = (state: AppState, action: Action): AppState => {
         }
         return;
       }
+      case 'UPDATE_DAILY_GOAL':
+        draft.dailyGoal.target = action.payload.goal;
+        draft.dailyGoal.functionId = action.payload.functionId;
+        return;
       // Ações do Cronômetro
       case 'SET_STOPWATCH_MODE':
           draft.stopwatch.isRunning = false;
@@ -164,8 +173,6 @@ const appReducer = (state: AppState, action: Action): AppState => {
               draft.stopwatch.pieces = 0;
 
           } else { // Se estava parado, vamos iniciar
-              // Não inicia se o countdown já terminou
-              if (draft.stopwatch.mode === 'countdown' && draft.stopwatch.time === 0) return;
               draft.stopwatch.isRunning = true;
           }
           return;
@@ -327,6 +334,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         if(savedState.days === undefined) {
           return getInitialState();
         }
+
+        // Garante que o estado de metas exista
+        if (savedState.dailyGoal === undefined) {
+          savedState.dailyGoal = getInitialState().dailyGoal;
+        }
+
         return savedState;
       }
     } catch (e) {

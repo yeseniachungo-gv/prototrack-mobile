@@ -40,11 +40,15 @@ export interface StopwatchState {
     history: StopwatchHistoryEntry[];
 }
 
+export interface DailyGoal {
+  target: number;
+  functionId: string | null;
+}
+
 export interface AppState {
   days: Day[];
   activeDayId: string | null;
   theme: 'light' | 'dark';
   stopwatch: StopwatchState;
+  dailyGoal: DailyGoal;
 }
-
-    

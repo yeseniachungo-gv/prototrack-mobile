@@ -1,3 +1,4 @@
+
 // src/app/page.tsx (Página de Planilhas/Início)
 "use client";
 
@@ -6,7 +7,7 @@ import Header from '@/components/Header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Plus, ChevronLeft, ChevronRight, Sparkles } from 'lucide-react';
+import { Plus, ChevronLeft, ChevronRight, Sparkles, Target, Edit } from 'lucide-react';
 import { useAppContext } from '@/contexts/AppContext';
 import FunctionCard from '@/components/FunctionCard';
 import FunctionSheet from '@/components/FunctionSheet';
@@ -20,6 +21,9 @@ import {
 import { Day, FunctionEntry } from '@/lib/types';
 import { suggestRelatedResources } from '@/ai/flows/suggest-related-resources';
 import { useToast } from '@/hooks/use-toast';
+import { Progress } from '@/components/ui/progress';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Label } from '@/components/ui/label';
 
 
 // Componente para a barra de seleção de dia
@@ -150,6 +154,97 @@ const AddFunctionForm = ({ dayId }: { dayId: string }) => {
   );
 };
 
+// --- Componente de Meta Diária ---
+const DailyGoalCard = () => {
+  const { state, dispatch, activeDay } = useAppContext();
+  const { dailyGoal } = state;
+  const [isOpen, setIsOpen] = useState(false);
+
+  const goalFunction = activeDay?.functions.find(f => f.id === dailyGoal.functionId);
+  const currentPieces = goalFunction ? Object.values(goalFunction.pieces).reduce((a, b) => a + b, 0) : 0;
+  const progress = dailyGoal.target > 0 ? (currentPieces / dailyGoal.target) * 100 : 0;
+
+  const handleSave = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const formData = new FormData(e.currentTarget);
+    const target = parseInt(formData.get('goalTarget') as string) || 0;
+    const functionId = formData.get('goalFunction') as string || null;
+    dispatch({ type: 'UPDATE_DAILY_GOAL', payload: { goal: target, functionId } });
+    setIsOpen(false);
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex justify-between items-start">
+          <div>
+            <CardTitle className="flex items-center gap-2">
+              <Target className="text-primary" /> Meta do Dia
+            </CardTitle>
+            <p className="text-sm text-muted-foreground mt-1">
+              Acompanhe o progresso da sua principal meta de produção.
+            </p>
+          </div>
+          <Popover open={isOpen} onOpenChange={setIsOpen}>
+            <PopoverTrigger asChild>
+              <Button variant="outline" size="icon" className="w-9 h-9">
+                <Edit className="w-4 h-4" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-80">
+              <form onSubmit={handleSave} className="grid gap-4">
+                <div className="space-y-2">
+                  <h4 className="font-medium leading-none">Definir Meta</h4>
+                  <p className="text-sm text-muted-foreground">
+                    Escolha a meta de peças e a função final.
+                  </p>
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="goalTarget">Meta de Peças</Label>
+                  <Input id="goalTarget" name="goalTarget" type="number" defaultValue={dailyGoal.target} />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="goalFunction">Função para Meta</Label>
+                   <Select name="goalFunction" defaultValue={dailyGoal.functionId ?? ""}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione uma função" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">Nenhuma</SelectItem>
+                      {activeDay?.functions.map(f => (
+                        <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <Button type="submit">Salvar</Button>
+              </form>
+            </PopoverContent>
+          </Popover>
+        </div>
+      </CardHeader>
+      <CardContent>
+        {dailyGoal.functionId && goalFunction ? (
+          <div className="space-y-2">
+            <div className="flex justify-between items-baseline">
+              <span className="font-bold text-2xl">{currentPieces.toLocaleString()}</span>
+              <span className="text-muted-foreground">/ {dailyGoal.target.toLocaleString()} peças</span>
+            </div>
+            <Progress value={progress} />
+            <div className="text-xs text-muted-foreground text-center">
+              Meta vinculada à função: <span className="font-semibold">{goalFunction.name}</span>
+            </div>
+          </div>
+        ) : (
+          <p className="text-muted-foreground text-center py-4">
+            Defina uma meta e selecione uma função para começar a acompanhar.
+          </p>
+        )}
+      </CardContent>
+    </Card>
+  )
+}
+
 
 // Página Principal
 export default function HomePage() {
@@ -171,6 +266,8 @@ export default function HomePage() {
       <Header title="Planilhas do Dia" />
       
       <DaySelector />
+
+      <DailyGoalCard />
 
       <Card>
         <CardHeader>

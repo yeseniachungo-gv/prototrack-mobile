@@ -71,7 +71,7 @@ export default function StopwatchPage() {
     ? (stopwatch.pieces / (stopwatch.initialTime - stopwatch.time)) * 3600
     : 0;
 
-  const isFinished = stopwatch.time === 0 && !stopwatch.isRunning && stopwatch.mode === 'countdown';
+  const isFinished = stopwatch.mode === 'countdown' && stopwatch.time === 0 && !stopwatch.isRunning;
 
   const canStart = !!operator.trim() && !!func.trim();
 
@@ -148,7 +148,7 @@ export default function StopwatchPage() {
           </div>
           
           <div className="flex justify-center gap-2">
-            <Button size="lg" onClick={handleToggleTimer} className="w-40" disabled={!canStart || (isFinished && !stopwatch.isRunning)}>
+            <Button size="lg" onClick={handleToggleTimer} className="w-40" disabled={!canStart}>
               {stopwatch.isRunning ? <><Pause className="mr-2"/> Parar</> : <><Play className="mr-2"/> Iniciar</>}
             </Button>
             <Button size="lg" variant="destructive" onClick={handleResetTimer} disabled={!stopwatch.isRunning && ((stopwatch.mode === 'countdown' && stopwatch.time === stopwatch.initialTime) || (stopwatch.mode === 'countup' && stopwatch.time === 0)) && stopwatch.pieces === 0}>
