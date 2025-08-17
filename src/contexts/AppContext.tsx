@@ -1,24 +1,29 @@
 "use client";
 
 import React, { createContext, useReducer, useContext, useEffect } from 'react';
-import { AppState, Day, FunctionEntry, Observation } from '@/lib/types';
+import { AppState, Day, FunctionEntry, Observation, HistoryEntry } from '@/lib/types';
 import {produce} from 'immer';
 
 type Action =
   | { type: 'SET_STATE'; payload: AppState }
   | { type: 'SET_ACTIVE_DAY'; payload: string }
-  | { type: 'ADD_DAY'; payload: { day: Day } }
+  | { type: 'ADD_DAY'; payload: { dayId: string } }
   | { type: 'DELETE_DAY'; payload: { dayId: string } }
   | { type: 'RENAME_DAY'; payload: { dayId: string, newId: string, newName: string } }
-  | { type: 'ADD_FUNCTION'; payload: { name: string } }
+  | { type: 'ADD_FUNCTION'; payload: { dayId: string; name: string } }
   | { type: 'DELETE_FUNCTION'; payload: { functionId: string } }
   | { type: 'UPDATE_FUNCTION'; payload: { dayId: string, functionData: FunctionEntry } }
-  | { type: 'UPDATE_OBSERVATION'; payload: { dayId: string, functionId: string, observation: Observation } };
+  | { type: 'UPDATE_OBSERVATION'; payload: { dayId: string, functionId: string, observation: Observation } }
+  | { type: 'ADD_HISTORY_ENTRY'; payload: { dayId: string; entry: HistoryEntry } }
+  | { type: 'CLEAR_HISTORY'; payload: { dayId: string } }
+  | { type: 'TOGGLE_THEME' };
 
+
+const APP_STATE_KEY = 'prototrack-state';
 
 function getInitialState(): AppState {
   if (typeof window !== 'undefined') {
-    const savedState = localStorage.getItem('giratempo-state');
+    const savedState = localStorage.getItem(APP_STATE_KEY);
     if (savedState) {
       try {
         return JSON.parse(savedState);
@@ -61,8 +66,10 @@ function getInitialState(): AppState {
         observations: [],
         checklists: [],
       }],
+      history: [],
     }],
     activeDayId: today,
+    theme: 'dark',
   };
 }
 
@@ -77,12 +84,29 @@ const appReducer = (state: AppState, action: Action): AppState => {
         case 'SET_STATE':
           return action.payload;
 
+        case 'TOGGLE_THEME':
+          draft.theme = draft.theme === 'dark' ? 'light' : 'dark';
+          break;
+
         case 'SET_ACTIVE_DAY':
           draft.activeDayId = action.payload;
           break;
+        
+        case 'ADD_DAY': {
+            const { dayId } = action.payload;
+            draft.days.push({
+                id: dayId,
+                name: `Dia ${dayId}`,
+                date: new Date(dayId).toISOString(),
+                functions: [],
+                history: [],
+            });
+            draft.activeDayId = dayId;
+            break;
+        }
 
         case 'ADD_FUNCTION': {
-            const day = draft.days.find(d => d.id === draft.activeDayId);
+            const day = draft.days.find(d => d.id === action.payload.dayId);
             if(day) {
                 day.functions.push({
                     id: crypto.randomUUID(),
@@ -133,6 +157,27 @@ const appReducer = (state: AppState, action: Action): AppState => {
           break;
         }
 
+        case 'ADD_HISTORY_ENTRY': {
+            const { dayId, entry } = action.payload;
+            const day = draft.days.find(d => d.id === dayId);
+            if(day) {
+                day.history.unshift(entry);
+                if (day.history.length > 25) {
+                    day.history.pop();
+                }
+            }
+            break;
+        }
+
+        case 'CLEAR_HISTORY': {
+             const { dayId } = action.payload;
+             const day = draft.days.find(d => d.id === dayId);
+             if(day) {
+                day.history = [];
+             }
+             break;
+        }
+
         default:
           break;
       }
@@ -143,7 +188,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [state, dispatch] = useReducer(appReducer, undefined, getInitialState);
 
   useEffect(() => {
-    localStorage.setItem('giratempo-state', JSON.stringify(state));
+    localStorage.setItem(APP_STATE_KEY, JSON.stringify(state));
   }, [state]);
 
   return (

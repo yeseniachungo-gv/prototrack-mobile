@@ -5,22 +5,16 @@ import Header from '@/components/Header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
+import { useAppContext } from '@/contexts/AppContext';
 
 export default function SettingsPage() {
   const { toast } = useToast();
+  const { state, dispatch } = useAppContext();
   
   const toggleTheme = () => {
-    const isDark = document.documentElement.classList.toggle('dark');
-    localStorage.setItem('theme', isDark ? 'dark' : 'light');
-    toast({ title: `Tema alterado para ${isDark ? 'escuro' : 'claro'}`});
+    dispatch({ type: 'TOGGLE_THEME' });
+    toast({ title: `Tema alterado para ${state.theme === 'dark' ? 'claro' : 'escuro'}`});
   }
-  
-  React.useEffect(() => {
-    const savedTheme = localStorage.getItem('theme');
-    if (savedTheme === 'dark') {
-      document.documentElement.classList.add('dark');
-    }
-  }, []);
 
   return (
     <div className="p-4 md:p-6 space-y-4">
@@ -29,9 +23,20 @@ export default function SettingsPage() {
       <Card>
         <CardHeader><CardTitle>Aparência</CardTitle></CardHeader>
         <CardContent className="flex flex-wrap gap-2">
-          <Button onClick={toggleTheme}>Alternar Tema Claro/Escuro</Button>
+          <Button onClick={toggleTheme}>
+            Mudar para tema {state.theme === 'dark' ? 'Claro' : 'Escuro'}
+          </Button>
         </CardContent>
       </Card>
+      
+      <Card>
+        <CardHeader><CardTitle>AI</CardTitle></CardHeader>
+        <CardContent className="flex flex-wrap gap-2">
+          <p className="text-muted-foreground w-full mb-2">Use a IA para obter sugestões sobre como melhorar seus protótipos.</p>
+          <Button onClick={() => toast({title: "Em breve!"})}>Obter Sugestões</Button>
+        </CardContent>
+      </Card>
+
     </div>
   );
 }

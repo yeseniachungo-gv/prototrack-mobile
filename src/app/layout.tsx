@@ -3,8 +3,8 @@ import "./globals.css";
 import AppWrapper from "@/components/AppWrapper";
 
 export const metadata: Metadata = {
-  title: "GiraTempo",
-  description: "Cronômetro de Produção",
+  title: "ProtoTrack Mobile",
+  description: "Stopwatch de Produção",
 };
 
 export default function RootLayout({

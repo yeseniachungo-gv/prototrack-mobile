@@ -14,22 +14,14 @@ import {
 } from "@/components/ui/table";
 import { useToast } from '@/hooks/use-toast';
 import Header from '@/components/Header';
-
-// Simplified types for this new prototype
-interface HistoryEntry {
-  id: number;
-  timestamp: string;
-  operator: string;
-  func: string;
-  interval: number;
-  pieces: number;
-  rate: number;
-}
+import { useAppContext } from '@/contexts/AppContext';
+import { HistoryEntry } from '@/lib/types';
 
 export default function StopwatchPage() {
   const { toast } = useToast();
-  const [activeSheet, setActiveSheet] = React.useState('Folha 1');
-  const [sheets, setSheets] = React.useState(['Folha 1', 'Folha 2']);
+  const { state, dispatch } = useAppContext();
+  
+  const activeDay = state.days.find(d => d.id === state.activeDayId);
 
   // Timer State
   const [intervalSec, setIntervalSec] = React.useState(60);
@@ -39,14 +31,10 @@ export default function StopwatchPage() {
   const [status, setStatus] = React.useState('Pronto');
   const timerRef = React.useRef<NodeJS.Timeout | null>(null);
 
-  // History State
-  const [history, setHistory] = React.useState<HistoryEntry[]>([]);
-  
   // Inputs
   const [operator, setOperator] = React.useState('JESÚS');
   const [func, setFunc] = React.useState('FILIGRANA');
   const [auxTime, setAuxTime] = React.useState(8.3);
-
 
   React.useEffect(() => {
     if (isRunning && remainingSec > 0) {
@@ -71,7 +59,8 @@ export default function StopwatchPage() {
     setIsRunning(false);
     if (timerRef.current) clearTimeout(timerRef.current);
     
-    if (pieces > 0) {
+    if (pieces > 0 && activeDay) {
+        const rate = Math.round(pieces * (3600 / intervalSec));
         const newEntry: HistoryEntry = {
             id: Date.now(),
             timestamp: new Date().toLocaleString('pt-BR'),
@@ -79,13 +68,17 @@ export default function StopwatchPage() {
             func,
             interval: intervalSec,
             pieces,
-            rate: Math.round(pieces * (3600 / intervalSec)),
+            rate: rate,
+            adjRate: Math.round(rate * (1 - (auxTime / 100))),
+            lossPercent: auxTime
         };
-        setHistory(prev => [newEntry, ...prev].slice(0, 25));
+        dispatch({ type: 'ADD_HISTORY_ENTRY', payload: { dayId: activeDay.id, entry: newEntry } });
         toast({ title: "Intervalo salvo no histórico!" });
     }
     
     setStatus('Finalizado');
+    setPieces(0);
+    setRemainingSec(intervalSec);
   };
 
   const handleReset = () => {
@@ -95,6 +88,13 @@ export default function StopwatchPage() {
     setPieces(0);
     setStatus('Pronto');
   };
+
+  const handleClearHistory = () => {
+    if (activeDay && confirm('Tem certeza que deseja apagar o histórico deste dia?')) {
+      dispatch({ type: 'CLEAR_HISTORY', payload: { dayId: activeDay.id } });
+      toast({ title: "Histórico limpo." });
+    }
+  }
 
   const selectPreset = (sec: number) => {
     handleReset();
@@ -126,7 +126,7 @@ export default function StopwatchPage() {
             <div>
               <div className="text-sm text-muted-foreground mb-2">Controles</div>
               <div className="flex flex-wrap gap-2">
-                <Button className="bg-cyan-400 hover:bg-cyan-500 text-black font-bold" onClick={handleStart} disabled={isRunning}>Iniciar</Button>
+                <Button className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold" onClick={handleStart} disabled={isRunning}>Iniciar</Button>
                 <Button variant="destructive" onClick={handleStop} disabled={!isRunning}>Finalizar</Button>
                 <Button variant="outline" onClick={handleReset} disabled={isRunning}>Reiniciar</Button>
               </div>
@@ -150,9 +150,9 @@ export default function StopwatchPage() {
 
           <div>
              <div className="flex items-center gap-4">
-                <div className="font-mono text-5xl font-black text-cyan-300">{`${String(Math.floor(remainingSec/60)).padStart(2,'0')}:${String(remainingSec%60).padStart(2,'0')}`}</div>
+                <div className="font-mono text-5xl font-black text-accent">{`${String(Math.floor(remainingSec/60)).padStart(2,'0')}:${String(remainingSec%60).padStart(2,'0')}`}</div>
                 <div className="flex-grow h-2.5 bg-secondary rounded-full overflow-hidden">
-                    <div className="h-full bg-gradient-to-r from-cyan-400 to-teal-400" style={{width: `${progress}%`, transition: 'width 0.5s linear'}}></div>
+                    <div className="h-full bg-gradient-to-r from-accent to-primary" style={{width: `${progress}%`, transition: 'width 0.5s linear'}}></div>
                 </div>
              </div>
           </div>
@@ -186,7 +186,7 @@ export default function StopwatchPage() {
             <h2 className="text-xl font-bold">Histórico</h2>
             <div>
               <Button variant="outline" size="sm" onClick={() => toast({ title: "Exportado!" })}>Exportar CSV</Button>
-              <Button variant="destructive" size="sm" className="ml-2" onClick={() => setHistory([])}>Limpar</Button>
+              <Button variant="destructive" size="sm" className="ml-2" onClick={handleClearHistory}>Limpar</Button>
             </div>
           </div>
           <div className="overflow-x-auto">
@@ -194,7 +194,7 @@ export default function StopwatchPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Data/Hora</TableHead>
-                  <TableHead>Nome</TableHead>
+                  <TableHead>Operador</TableHead>
                   <TableHead>Função</TableHead>
                   <TableHead>Intervalo</TableHead>
                   <TableHead>Peças</TableHead>
@@ -202,7 +202,7 @@ export default function StopwatchPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {history.length > 0 ? history.map(row => (
+                {activeDay?.history && activeDay.history.length > 0 ? activeDay.history.map(row => (
                   <TableRow key={row.id}>
                     <TableCell>{row.timestamp}</TableCell>
                     <TableCell>{row.operator}</TableCell>

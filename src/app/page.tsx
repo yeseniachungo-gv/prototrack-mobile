@@ -1,23 +1,29 @@
 "use client";
 
-import React, { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import React from 'react';
 import Header from '@/components/Header';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { useAppContext } from '@/contexts/AppContext';
 import { Day, FunctionEntry } from '@/lib/types';
 import FunctionCard from '@/components/FunctionCard';
 import FunctionSheet from '@/components/FunctionSheet';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { MoreHorizontal } from 'lucide-react';
+
 
 export default function HomePage() {
   const { state, dispatch } = useAppContext();
   const { toast } = useToast();
-  const router = useRouter();
 
-  const [isSheetOpen, setSheetOpen] = useState(false);
-  const [selectedFunction, setSelectedFunction] = useState<FunctionEntry | null>(null);
+  const [isSheetOpen, setSheetOpen] = React.useState(false);
+  const [selectedFunction, setSelectedFunction] = React.useState<FunctionEntry | null>(null);
 
   const activeDay: Day | undefined = state.days.find(d => d.id === state.activeDayId);
 
@@ -28,11 +34,30 @@ export default function HomePage() {
       setSheetOpen(true);
     }
   };
+  
+  const handleSetActiveDay = (dayId: string) => {
+    dispatch({ type: 'SET_ACTIVE_DAY', payload: dayId });
+  };
+  
+  const handleAddDay = () => {
+    const newId = prompt("Nova data (AAAA-MM-DD):", new Date(Date.now() + 864e5).toISOString().slice(0, 10));
+    if (newId && /^\d{4}-\d{2}-\d{2}$/.test(newId)) {
+      if (state.days.some(d => d.id === newId)) {
+        toast({ title: "Este dia já existe.", variant: 'destructive' });
+        return;
+      }
+      dispatch({ type: 'ADD_DAY', payload: { dayId: newId } });
+      toast({ title: "Novo dia adicionado." });
+    } else if (newId) {
+      toast({ title: "Formato de data inválido.", variant: 'destructive' });
+    }
+  };
 
   const handleAddFunction = () => {
+    if (!activeDay) return;
     const name = prompt('Nome da nova função:', 'Nova Função');
     if (name) {
-      dispatch({ type: 'ADD_FUNCTION', payload: { name } });
+      dispatch({ type: 'ADD_FUNCTION', payload: { dayId: activeDay.id, name } });
       toast({ title: 'Função adicionada!' });
     }
   };
@@ -46,10 +71,10 @@ export default function HomePage() {
 
   const handleEditFunction = (funcId: string) => {
      const func = activeDay?.functions.find(f => f.id === funcId);
-     if(!func) return;
+     if(!func || !activeDay) return;
      const newName = prompt('Novo nome para a função:', func.name);
      if(newName) {
-        dispatch({ type: 'UPDATE_FUNCTION', payload: { dayId: activeDay!.id, functionData: {...func, name: newName} }})
+        dispatch({ type: 'UPDATE_FUNCTION', payload: { dayId: activeDay.id, functionData: {...func, name: newName} }})
         toast({ title: 'Função atualizada.'})
      }
   }
@@ -59,15 +84,35 @@ export default function HomePage() {
   }, 0) || 0;
 
   const downtimeMinutes = activeDay?.functions.reduce((acc, func) => {
-      return acc + func.observations.filter(o => o.type === 'downtime').length * 5; // Placeholder
+      return acc + func.observations.filter(o => o.type === 'downtime').reduce((dAcc, obs) => dAcc + (obs.duration || 0), 0);
   }, 0) || 0;
 
   return (
     <div className="p-4 md:p-6 space-y-4">
-      <Header title="Planilhas do Dia">
-        <div className="text-sm font-medium text-muted-foreground">{activeDay?.name || 'Nenhum dia selecionado'}</div>
+      <Header title="Planilhas">
+         <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon"><MoreHorizontal /></Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent>
+                <DropdownMenuItem onSelect={handleAddDay}>Adicionar Novo Dia</DropdownMenuItem>
+            </DropdownMenuContent>
+        </DropdownMenu>
       </Header>
       
+      <div className="flex gap-2 overflow-x-auto pb-2 -mx-4 px-4">
+        {state.days.map(day => (
+          <Button 
+            key={day.id}
+            variant={day.id === state.activeDayId ? 'secondary' : 'outline'}
+            onClick={() => handleSetActiveDay(day.id)}
+            className="shrink-0"
+          >
+            {day.name}
+          </Button>
+        ))}
+      </div>
+
       <Card>
         <CardContent className="p-4 space-y-4">
           <div className="space-y-2">
@@ -91,30 +136,19 @@ export default function HomePage() {
       </Card>
       
       <Card>
-        <CardHeader>
-            <CardTitle className="text-lg">Resumo do dia</CardTitle>
-        </CardHeader>
-        <CardContent className="flex flex-wrap gap-2">
-            <div className="bg-secondary p-2 px-3 rounded-full text-sm font-semibold">Peças: {totalPieces}</div>
-            <div className="bg-secondary p-2 px-3 rounded-full text-sm font-semibold">Paradas: {downtimeMinutes} min</div>
+        <CardContent className="p-4">
+            <CardTitle className="text-lg mb-4">Resumo do dia</CardTitle>
+            <div className="flex flex-wrap gap-2">
+                <div className="bg-secondary p-2 px-3 rounded-full text-sm font-semibold">Peças: {totalPieces}</div>
+                <div className="bg-secondary p-2 px-3 rounded-full text-sm font-semibold">Paradas: {downtimeMinutes} min</div>
+            </div>
         </CardContent>
       </Card>
-
-      <Card>
-        <CardHeader>
-            <CardTitle className="text-lg">Cronômetro (mini)</CardTitle>
-        </CardHeader>
-        <CardContent className="flex items-center justify-between">
-            <div className="font-mono text-3xl font-bold">00:00</div>
-            <Button onClick={() => router.push('/stopwatch')}>Abrir cronômetro</Button>
-        </CardContent>
-      </Card>
-
 
       {selectedFunction && activeDay && (
         <FunctionSheet
-          day={activeDay}
-          func={selectedFunction}
+          dayId={activeDay.id}
+          funcId={selectedFunction.id}
           isOpen={isSheetOpen}
           onClose={() => setSheetOpen(false)}
         />

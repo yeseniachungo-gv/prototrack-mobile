@@ -1,26 +1,29 @@
 "use client";
-import React, { useState } from 'react';
+import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Day, FunctionEntry, Observation } from '@/lib/types';
+import { Observation } from '@/lib/types';
 import { useAppContext } from '@/contexts/AppContext';
 import { useToast } from '@/hooks/use-toast';
 
 interface FunctionSheetProps {
-  day: Day | null;
-  func: FunctionEntry | null;
+  dayId: string;
+  funcId: string;
   isOpen: boolean;
   onClose: () => void;
 }
 
 const OBSERVATION_REASONS = ['Troca de função', 'Treinamento', 'Manutenção de máquina', 'Pausa prolongada', 'Outro'];
 
-export default function FunctionSheet({ day, func, isOpen, onClose }: FunctionSheetProps) {
-  const { dispatch } = useAppContext();
+export default function FunctionSheet({ dayId, funcId, isOpen, onClose }: FunctionSheetProps) {
+  const { state, dispatch } = useAppContext();
   const { toast } = useToast();
+  
+  const day = state.days.find(d => d.id === dayId);
+  const func = day?.functions.find(f => f.id === funcId);
 
   const handleCellChange = (worker: string, hour: string, field: keyof Observation, value: string | number) => {
     if (!day || !func) return;
@@ -36,6 +39,7 @@ export default function FunctionSheet({ day, func, isOpen, onClose }: FunctionSh
         pieces: existingObs?.pieces || 0,
         reason: existingObs?.reason || '',
         detail: existingObs?.detail || '',
+        duration: existingObs?.duration || 0,
         ...{ [field]: value === 'none' ? '' : value }
     };
     
@@ -101,7 +105,7 @@ export default function FunctionSheet({ day, func, isOpen, onClose }: FunctionSh
                     <td className="p-2 border font-bold">{hour}</td>
                     {func.workers.map(worker => {
                       const cellData = getCellData(worker, hour);
-                      const hasObs = cellData?.reason || cellData?.detail;
+                      const hasObs = cellData?.reason || cellDatar?.detail;
                       return (
                         <td key={worker} className="p-2 border align-top">
                           <div className="space-y-2">
@@ -120,7 +124,7 @@ export default function FunctionSheet({ day, func, isOpen, onClose }: FunctionSh
                                 </Label>
                                 <div className="space-y-1 mt-1">
                                     <Select
-                                        value={cellData?.reason || ''}
+                                        value={cellData?.reason || 'none'}
                                         onValueChange={(value) => handleCellChange(worker, hour, 'reason', value)}
                                     >
                                         <SelectTrigger>

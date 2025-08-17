@@ -1,24 +1,35 @@
 export interface Observation {
   id: string;
-  type: 'note' | 'defect' | 'downtime'; // Type might be simplified from original
+  type: 'note' | 'defect' | 'downtime'; 
   reason: string;
   detail: string;
   timestamp: number;
   worker: string;
   hour: string;
-  pieces: number; // No longer optional
+  pieces: number;
+  duration?: number; // for downtime
 }
 
 export interface FunctionEntry {
   id: string;
   name: string;
   description: string;
-  // worker field is deprecated in favor of workers array
   workers: string[];
   hours: string[];
-  observations: Observation[]; // Replaces the 'cells' map from core.js
-  // checklists field from previous state
+  observations: Observation[];
   checklists: string[];
+}
+
+export interface HistoryEntry {
+  id: number;
+  timestamp: string;
+  operator: string;
+  func: string;
+  interval: number;
+  pieces: number;
+  rate: number;
+  adjRate: number;
+  lossPercent: number;
 }
 
 export interface Day {
@@ -26,24 +37,11 @@ export interface Day {
   name: string; // User-friendly name, e.g., "Dia de Teste"
   date: string; // ISO string
   functions: FunctionEntry[];
+  history: HistoryEntry[];
 }
 
 export interface AppState {
   days: Day[];
   activeDayId: string | null;
-}
-
-export interface TimerState {
-  running: boolean;
-  startedAt: number | null;
-  elapsedSec: number;
-  pieces: number;
-  history: TimerHistoryEntry[];
-}
-
-export interface TimerHistoryEntry {
-  start: number;
-  end: number;
-  elapsedSec: number;
-  pieces: number;
+  theme: 'light' | 'dark';
 }
