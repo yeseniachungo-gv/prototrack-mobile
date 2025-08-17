@@ -7,11 +7,10 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { useAppContext } from '@/contexts/AppContext';
 import { useToast } from '@/hooks/use-toast';
-import { Download, Upload, FileText, Loader2, BookCheck, ShieldCheck, CalendarRange } from 'lucide-react';
-import type { Day, FunctionEntry } from '@/lib/types';
+import { Loader2, BookCheck, CalendarRange } from 'lucide-react';
+import type { Day } from '@/lib/types';
 import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { generateDailyReport, GenerateDailyReportOutput } from '@/ai/flows/generate-daily-report';
-import { generateConsolidatedReport, GenerateConsolidatedReportOutput } from '@/ai/flows/generate-consolidated-report';
 import ReportDialog from '@/components/ReportDialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { subDays, format, parseISO } from 'date-fns';
@@ -65,13 +64,11 @@ const ProductionTrendChart = ({ days }: { days: Day[] }) => {
 
 // Componente principal da Página de Relatórios
 export default function ReportsPage() {
-  const { state, dispatch, activeProfile } = useAppContext();
+  const { activeProfile } = useAppContext();
   const { toast } = useToast();
-  const restoreInputRef = useRef<HTMLInputElement>(null);
   
   const [isGenerating, setIsGenerating] = useState(false);
-  const [reportData, setReportData] = useState<GenerateDailyReportOutput | GenerateConsolidatedReportOutput | null>(null);
-  const [reportType, setReportType] = useState<'daily' | 'consolidated' | null>(null);
+  const [reportData, setReportData] = useState<GenerateDailyReportOutput | null>(null);
   const [isReportOpen, setIsReportOpen] = useState(false);
   const [selectedPeriod, setSelectedPeriod] = useState<Period>('7d');
 
@@ -98,75 +95,10 @@ export default function ReportsPage() {
   }, [activeProfile, selectedPeriod]);
 
   // --- Handlers de Ações ---
-  const handleExportCSV = (day: Day) => {
-    if (!day) return;
-    let csvContent = "data:text/csv;charset=utf-8,Função,Trabalhador,Hora,Peças,Motivo Observação,Detalhe Observação,Minutos Parados\n";
-    
-    day.functions.forEach(f => {
-      f.workers.forEach(w => {
-        f.hours.forEach(h => {
-          const piecesKey = `${w}_${h}`;
-          const pieces = f.pieces[piecesKey] || 0;
-          const obs = f.observations[piecesKey];
-          csvContent += `"${f.name}","${w}","${h}","${pieces}","${obs?.reason || ''}","${obs?.detail || ''}","${obs?.minutesStopped || 0}"\n`;
-        });
-      });
-    });
-
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `relatorio_${activeProfile?.name}_${day.id}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
-  
-  const handleBackup = () => {
-    try {
-      const dataStr = JSON.stringify(state, null, 2);
-      const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
-      
-      const link = document.createElement("a");
-      link.setAttribute("href", dataUri);
-      link.setAttribute("download", `giratempo_backup_${new Date().toISOString().split('T')[0]}.json`);
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      
-      toast({ title: 'Backup criado com sucesso!' });
-    } catch(err) {
-      console.error("Erro ao criar backup:", err);
-      toast({ title: 'Erro ao criar backup.', variant: 'destructive'});
-    }
-  };
-  
-  const handleTriggerRestore = () => {
-    restoreInputRef.current?.click();
-  };
-
-  const handleRestore = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        try {
-          const restoredState = JSON.parse(e.target?.result as string);
-          dispatch({ type: 'SET_STATE', payload: restoredState });
-          toast({ title: 'Restauração concluída!', description: 'O estado da aplicação foi restaurado. A página será recarregada.' });
-          setTimeout(() => window.location.reload(), 2000);
-        } catch(err) {
-          toast({ title: 'Arquivo de backup inválido.', variant: 'destructive'});
-        }
-      };
-      reader.readAsText(file);
-    }
-  };
-  
   const handleGenerateDailyReport = async () => {
     const activeDay = activeProfile?.days.find(d => d.id === activeProfile.activeDayId);
     if (!activeDay || !activeProfile) {
-        toast({ title: 'Nenhum dia ativo selecionado', variant: 'destructive' });
+        toast({ title: 'Nenhum dia ativo selecionado', description: "Vá para o dashboard e selecione um dia.", variant: 'destructive' });
         return;
     }
     
@@ -181,7 +113,6 @@ export default function ReportsPage() {
         })
       });
       setReportData(report);
-      setReportType('daily');
       setIsReportOpen(true);
     } catch(err) {
       console.error("Erro ao gerar relatório diário", err);
@@ -194,37 +125,19 @@ export default function ReportsPage() {
   const renderReportDialog = () => {
     if (!reportData) return null;
 
-    if (reportType === 'daily') {
-        const data = reportData as GenerateDailyReportOutput;
-        return <ReportDialog
-            title={data.reportTitle}
-            summary={data.summary}
-            sections={[
-                { title: 'Análise de Desempenho', content: data.performanceAnalysis },
-                { title: 'Análise de Paradas', content: data.stoppageAnalysis },
-                { title: 'Análise da Meta', content: data.goalAnalysis },
-                { title: 'Recomendações', content: data.recommendations },
-            ]}
-            isOpen={isReportOpen}
-            onClose={() => setIsReportOpen(false)}
-        />
-    }
-
-    if (reportType === 'consolidated') {
-        const data = reportData as GenerateConsolidatedReportOutput;
-        return <ReportDialog
-            title={data.reportTitle}
-            summary={data.overallSummary}
-            sections={[
-                { title: 'Análise Comparativa de Perfis', content: data.profileComparison },
-                { title: 'Análise Geral de Funções', content: data.functionAnalysis },
-                { title: 'Insights Globais', content: data.globalInsights },
-            ]}
-            isOpen={isReportOpen}
-            onClose={() => setIsReportOpen(false)}
-        />
-    }
-    return null;
+    const data = reportData as GenerateDailyReportOutput;
+    return <ReportDialog
+        title={data.reportTitle}
+        summary={data.summary}
+        sections={[
+            { title: 'Análise de Desempenho', content: data.performanceAnalysis },
+            { title: 'Análise de Paradas', content: data.stoppageAnalysis },
+            { title: 'Análise da Meta', content: data.goalAnalysis },
+            { title: 'Recomendações', content: data.recommendations },
+        ]}
+        isOpen={isReportOpen}
+        onClose={() => setIsReportOpen(false)}
+    />
   }
 
   return (
@@ -241,7 +154,7 @@ export default function ReportsPage() {
         <CardContent className="flex flex-col sm:flex-row gap-4">
           <Button onClick={handleGenerateDailyReport} disabled={!activeProfile?.activeDayId || isGenerating}>
             {isGenerating ? <Loader2 className="mr-2 animate-spin"/> : <BookCheck className="mr-2" />}
-            Gerar Resumo do Dia (Perfil Atual)
+            Gerar Resumo do Dia
           </Button>
         </CardContent>
       </Card>
@@ -250,7 +163,7 @@ export default function ReportsPage() {
         <CardHeader>
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                  <div>
-                    <CardTitle>Tendência de Produção do Perfil</CardTitle>
+                    <CardTitle>Tendência de Produção</CardTitle>
                     <CardDescription>
                         Produção total por dia para o perfil ativo no período selecionado.
                     </CardDescription>
@@ -279,36 +192,6 @@ export default function ReportsPage() {
                 {activeProfile ? `Nenhum dado de produção encontrado para "${getPeriodLabel(selectedPeriod)}".` : 'Selecione um perfil para ver os gráficos.'}
              </p>
           )}
-        </CardContent>
-      </Card>
-      
-       <Card>
-        <CardHeader>
-          <CardTitle>Exportação & Backup</CardTitle>
-          <CardDescription>
-            Salve dados para análise externa ou faça a gestão de backups.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="flex flex-wrap gap-2">
-            <Button onClick={() => {
-                const day = activeProfile?.days.find(d => d.id === activeProfile.activeDayId);
-                if (day) handleExportCSV(day);
-            }} disabled={!activeProfile?.activeDayId} variant="outline">
-              <FileText className="mr-2"/> Exportar CSV do Dia Ativo
-            </Button>
-            <Button onClick={handleBackup} variant="outline" disabled={!activeProfile}>
-              <Download className="mr-2"/> Criar Backup de Tudo
-            </Button>
-            <Button onClick={handleTriggerRestore} variant="outline">
-              <Upload className="mr-2"/> Restaurar de Arquivo
-            </Button>
-            <input
-              type="file"
-              ref={restoreInputRef}
-              onChange={handleRestore}
-              className="hidden"
-              accept=".json"
-            />
         </CardContent>
       </Card>
 
