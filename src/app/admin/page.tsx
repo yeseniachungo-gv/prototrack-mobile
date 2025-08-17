@@ -4,7 +4,7 @@
 import React, { useState, useMemo } from 'react';
 import Header from '@/components/Header';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { ShieldCheck, Users, BarChart2, Loader2, BookCheck, Plus, Trash2, HardHat, AlertTriangle, Lock, WifiOff } from 'lucide-react';
+import { ShieldCheck, Users, BarChart2, Loader2, BookCheck, Plus, Trash2, Lock, WifiOff, Zap, Timer } from 'lucide-react';
 import { useAppContext } from '@/contexts/AppContext';
 import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import ReportDialog from '@/components/ReportDialog';
@@ -21,6 +21,7 @@ import {
 import { format, parseISO } from 'date-fns';
 import { Input } from '@/components/ui/input';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 const AdminProductionChart = () => {
     const { state } = useAppContext();
@@ -33,7 +34,6 @@ const AdminProductionChart = () => {
     }, [state.profiles]);
 
     React.useEffect(() => {
-        // If the selectedDayId is no longer valid or null, reset to the first available day.
         if (allDays.length > 0 && (!selectedDayId || !allDays.includes(selectedDayId))) {
             setSelectedDayId(allDays[0]);
         } else if (allDays.length === 0) {
@@ -101,6 +101,61 @@ const AdminProductionChart = () => {
       </div>
     );
 };
+
+const StopwatchPerformance = () => {
+    const { state } = useAppContext();
+
+    const allHistory = useMemo(() => {
+        return state.profiles.flatMap(p => 
+            p.stopwatchHistory.map(h => ({...h, profileName: p.name}))
+        );
+    }, [state.profiles]);
+
+    const operatorPerformance = useMemo(() => {
+        const operators: { [name: string]: { totalDuration: number, totalPieces: number, count: number } } = {};
+        allHistory.forEach(entry => {
+            if (!operators[entry.workerName]) {
+                operators[entry.workerName] = { totalDuration: 0, totalPieces: 0, count: 0 };
+            }
+            operators[entry.workerName].totalDuration += entry.duration;
+            operators[entry.workerName].totalPieces += entry.pieces;
+            operators[entry.workerName].count += 1;
+        });
+
+        return Object.entries(operators)
+            .map(([name, data]) => ({
+                name,
+                avgPph: data.totalDuration > 0 ? (data.totalPieces / data.totalDuration) * 3600 : 0,
+            }))
+            .sort((a, b) => b.avgPph - a.avgPph);
+    }, [allHistory]);
+    
+    if (allHistory.length === 0) {
+        return <div className="text-center text-muted-foreground py-8">Nenhum dado do cronômetro encontrado.</div>;
+    }
+    
+    return (
+        <div className="space-y-4">
+            <h4 className="font-semibold">Desempenho por Operador (Média de Peças/Hora)</h4>
+             <Table>
+                <TableHeader>
+                    <TableRow>
+                        <TableHead>Operador</TableHead>
+                        <TableHead className="text-right">Peças/Hora</TableHead>
+                    </TableRow>
+                </TableHeader>
+                <TableBody>
+                    {operatorPerformance.map(op => (
+                        <TableRow key={op.name}>
+                            <TableCell className="font-medium">{op.name}</TableCell>
+                            <TableCell className="text-right font-mono">{op.avgPph.toFixed(0)}</TableCell>
+                        </TableRow>
+                    ))}
+                </TableBody>
+            </Table>
+        </div>
+    )
+}
 
 const ProfileManager = () => {
     const { state, dispatch } = useAppContext();
@@ -307,6 +362,18 @@ export default function AdminPage() {
             </CardContent>
           </Card>
         
+         <Card>
+            <CardHeader>
+                <CardTitle className="flex items-center gap-2"><Timer /> Desempenho do Cronômetro</CardTitle>
+                <CardDescription>
+                    Veja o ranking de performance dos operadores com base nos dados do cronômetro de todos os perfis.
+                </CardDescription>
+            </CardHeader>
+          <CardContent>
+             <StopwatchPerformance />
+          </CardContent>
+        </Card>
+
         <Card>
             <CardHeader>
                 <CardTitle className="flex items-center gap-2"><Users /> Gestão de Perfis e Acessos</CardTitle>

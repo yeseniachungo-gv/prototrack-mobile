@@ -20,16 +20,6 @@ type Action =
   | { type: 'DELETE_HOUR_FROM_FUNCTION', payload: { dayId: string; functionId: string; hour: string } }
   | { type: 'UPDATE_PIECES', payload: { dayId: string; functionId: string; worker: string; hour: string; value: number } }
   | { type: 'UPDATE_OBSERVATION', payload: { dayId: string; functionId: string; worker: string; hour: string; reason: string; detail: string; minutesStopped?: number } }
-  | { type: 'SET_TIMER', payload: number }
-  | { type: 'START_TIMER' }
-  | { type: 'STOP_TIMER' }
-  | { type: 'RESET_TIMER' }
-  | { type: 'TICK' }
-  | { type: 'ADD_PIECE', payload: number }
-  | { type: 'UNDO_PIECE' }
-  | { type: 'SET_STOPWATCH_MODE', payload: 'countdown' | 'countup' }
-  | { type: 'UPDATE_STOPWATCH_SESSION_DETAILS', payload: { operator: string, functionName: string, auxiliaryTimePercent: number } }
-  | { type: 'CLEAR_STOPWATCH_HISTORY' }
   | { type: 'UPDATE_DAILY_GOAL', payload: { goal: number; functionId: string | null } }
   | { type: 'ADD_PROFILE'; payload: string }
   | { type: 'DELETE_PROFILE'; payload: string }
@@ -38,9 +28,36 @@ type Action =
   | { type: 'UPDATE_PROFILE_DETAILS', payload: { profileId: string; name: string; pin: string } }
   | { type: 'ADD_ANNOUNCEMENT', payload: { content: string } }
   | { type: 'ADD_MASTER_DATA'; payload: { type: 'workers' | 'reasons'; name: string } }
-  | { type: 'DELETE_MASTER_DATA'; payload: { type: 'workers' | 'reasons'; id: string } };
+  | { type: 'EDIT_MASTER_DATA', payload: { type: 'workers' | 'reasons'; id: string; newName: string } }
+  | { type: 'DELETE_MASTER_DATA'; payload: { type: 'workers' | 'reasons'; id: string } }
+  // Stopwatch actions now need profileId
+  | { type: 'SET_TIMER', payload: { profileId: string, seconds: number } }
+  | { type: 'START_TIMER', payload: { profileId: string } }
+  | { type: 'STOP_TIMER', payload: { profileId: string } }
+  | { type: 'RESET_TIMER', payload: { profileId: string } }
+  | { type: 'TICK', payload: { profileId: string } }
+  | { type: 'ADD_PIECE', payload: { profileId: string, amount: number } }
+  | { type: 'UNDO_PIECE', payload: { profileId: string } }
+  | { type: 'SET_STOPWATCH_MODE', payload: { profileId: string, mode: 'countdown' | 'countup' } }
+  | { type: 'CLEAR_STOPWATCH_HISTORY', payload: { profileId: string } }
+  | { type: 'UPDATE_STOPWATCH_STATE', payload: { profileId: string, stopwatchState: StopwatchState } };
 
-const APP_STATE_KEY = 'giratempo-state-v3-pwa';
+
+const APP_STATE_KEY = 'giratempo-state-v4-multi-stopwatch';
+
+const createDefaultStopwatchState = (): StopwatchState => ({
+    mode: 'countdown',
+    time: 15,
+    initialTime: 15,
+    pieces: 0,
+    isRunning: false,
+    session: {
+      operator: '',
+      functionName: '',
+      auxiliaryTimePercent: 8.3,
+    },
+    history: []
+});
 
 const createDefaultProfile = (name: string): Profile => {
     const today = new Date().toISOString().split('T')[0];
@@ -77,7 +94,9 @@ const createDefaultProfile = (name: string): Profile => {
             { id: uuidv4(), name: 'Manutenção de máquina' },
             { id: uuidv4(), name: 'Pausa prolongada' },
             { id: uuidv4(), name: 'Outro' },
-        ]
+        ],
+        stopwatchHistory: [],
+        stopwatch: createDefaultStopwatchState()
     };
 };
 
@@ -88,19 +107,7 @@ function getInitialState(): AppState {
     activeProfileId: null, 
     currentProfileForLogin: null,
     theme: 'dark',
-    stopwatch: {
-        mode: 'countdown',
-        time: 15,
-        initialTime: 15,
-        pieces: 0,
-        isRunning: false,
-        session: {
-          operator: '',
-          functionName: '',
-          auxiliaryTimePercent: 8.3,
-        },
-        history: []
-    },
+    stopwatch: createDefaultStopwatchState(), // Legacy, keep for migration
     announcements: [],
   };
 }
@@ -114,8 +121,9 @@ const AppContext = createContext<{
 
 const appReducer = produce((draft: AppState, action: Action) => {
     
-    const saveStopwatchHistory = (draft: AppState) => {
-        const { session, mode, initialTime, time, pieces } = draft.stopwatch;
+    // Helper to save stopwatch history to the correct profile
+    const saveStopwatchHistory = (profile: Profile) => {
+        const { session, mode, initialTime, time, pieces } = profile.stopwatch;
         const duration = mode === 'countdown' ? initialTime - time : time;
 
         if (duration > 0 || pieces > 0) {
@@ -134,7 +142,7 @@ const appReducer = produce((draft: AppState, action: Action) => {
                 auxiliaryTimePercent: session.auxiliaryTimePercent,
                 adjustedAveragePerHour: adjustedPph,
             };
-            draft.stopwatch.history.unshift(newEntry);
+            profile.stopwatchHistory.unshift(newEntry);
         }
     };
     
@@ -208,77 +216,94 @@ const appReducer = produce((draft: AppState, action: Action) => {
         }
 
         // --- Stopwatch Actions ---
+        case 'UPDATE_STOPWATCH_STATE': {
+            const profile = draft.profiles.find(p => p.id === action.payload.profileId);
+            if (profile && !profile.stopwatch.isRunning) {
+                profile.stopwatch = action.payload.stopwatchState;
+            }
+            break;
+        }
         case 'SET_STOPWATCH_MODE': {
-            if (draft.stopwatch.isRunning) break;
-            draft.stopwatch.mode = action.payload;
-            draft.stopwatch.pieces = 0;
-            draft.stopwatch.time = action.payload === 'countdown' ? draft.stopwatch.initialTime : 0;
+            const profile = draft.profiles.find(p => p.id === action.payload.profileId);
+            if (profile && !profile.stopwatch.isRunning) {
+                profile.stopwatch.mode = action.payload.mode;
+                profile.stopwatch.pieces = 0;
+                profile.stopwatch.time = action.payload.mode === 'countdown' ? profile.stopwatch.initialTime : 0;
+            }
             break;
         }
         case 'SET_TIMER': {
-            if (draft.stopwatch.isRunning) break;
-            if (draft.stopwatch.mode === 'countdown') {
-                draft.stopwatch.initialTime = action.payload;
-                draft.stopwatch.time = action.payload;
+            const profile = draft.profiles.find(p => p.id === action.payload.profileId);
+            if (profile && !profile.stopwatch.isRunning) {
+                if (profile.stopwatch.mode === 'countdown') {
+                    profile.stopwatch.initialTime = action.payload.seconds;
+                    profile.stopwatch.time = action.payload.seconds;
+                }
             }
             break;
         }
         case 'START_TIMER': {
-            if (draft.stopwatch.isRunning) break;
-            draft.stopwatch.isRunning = true;
-             if (draft.stopwatch.mode === 'countup') {
-                draft.stopwatch.time = 0;
-                draft.stopwatch.pieces = 0;
+            const profile = draft.profiles.find(p => p.id === action.payload.profileId);
+            if (profile && !profile.stopwatch.isRunning) {
+                profile.stopwatch.isRunning = true;
+                if (profile.stopwatch.mode === 'countup') {
+                    profile.stopwatch.time = 0;
+                    profile.stopwatch.pieces = 0;
+                }
             }
             break;
         }
         case 'STOP_TIMER': {
-            if (!draft.stopwatch.isRunning) break;
-            draft.stopwatch.isRunning = false;
-            saveStopwatchHistory(draft);
+            const profile = draft.profiles.find(p => p.id === action.payload.profileId);
+            if (profile && profile.stopwatch.isRunning) {
+                profile.stopwatch.isRunning = false;
+                saveStopwatchHistory(profile);
+            }
             break;
         }
         case 'RESET_TIMER': {
-            if (draft.stopwatch.isRunning) break;
-            draft.stopwatch.pieces = 0;
-            draft.stopwatch.time = draft.stopwatch.mode === 'countdown' ? draft.stopwatch.initialTime : 0;
+            const profile = draft.profiles.find(p => p.id === action.payload.profileId);
+            if (profile && !profile.stopwatch.isRunning) {
+                profile.stopwatch.pieces = 0;
+                profile.stopwatch.time = profile.stopwatch.mode === 'countdown' ? profile.stopwatch.initialTime : 0;
+            }
             break;
         }
         case 'ADD_PIECE': {
-            if (draft.stopwatch.isRunning) {
-                draft.stopwatch.pieces += action.payload;
+            const profile = draft.profiles.find(p => p.id === action.payload.profileId);
+            if (profile && profile.stopwatch.isRunning) {
+                profile.stopwatch.pieces += action.payload.amount;
             }
             break;
         }
         case 'UNDO_PIECE': {
-            if(draft.stopwatch.pieces > 0) {
-                draft.stopwatch.pieces -= 1;
+            const profile = draft.profiles.find(p => p.id === action.payload.profileId);
+            if (profile && profile.stopwatch.pieces > 0) {
+                profile.stopwatch.pieces -= 1;
             }
             break;
         }
         case 'TICK': {
-            if (!draft.stopwatch.isRunning) break;
-
-            if (draft.stopwatch.mode === 'countdown') {
-                draft.stopwatch.time -= 1;
-                if (draft.stopwatch.time <= 0) {
-                    draft.stopwatch.time = 0;
-                    draft.stopwatch.isRunning = false;
-                    saveStopwatchHistory(draft);
+            const profile = draft.profiles.find(p => p.id === action.payload.profileId);
+            if (profile && profile.stopwatch.isRunning) {
+                 if (profile.stopwatch.mode === 'countdown') {
+                    profile.stopwatch.time -= 1;
+                    if (profile.stopwatch.time <= 0) {
+                        profile.stopwatch.time = 0;
+                        profile.stopwatch.isRunning = false;
+                        saveStopwatchHistory(profile);
+                    }
+                } else { // countup
+                    profile.stopwatch.time += 1;
                 }
-            } else { // countup
-                draft.stopwatch.time += 1;
-            }
-            break;
-        }
-        case 'UPDATE_STOPWATCH_SESSION_DETAILS': {
-            if (!draft.stopwatch.isRunning) {
-                draft.stopwatch.session = action.payload;
             }
             break;
         }
         case 'CLEAR_STOPWATCH_HISTORY': {
-            draft.stopwatch.history = [];
+            const profile = draft.profiles.find(p => p.id === action.payload.profileId);
+            if (profile) {
+                profile.stopwatchHistory = [];
+            }
             break;
         }
 
@@ -288,7 +313,40 @@ const appReducer = produce((draft: AppState, action: Action) => {
             if (!activeProfile) break;
 
             switch(action.type) {
-                 // --- Master Data Actions (Profile specific) ---
+                case 'EDIT_MASTER_DATA': {
+                    const { type, id, newName } = action.payload;
+                    const list = type === 'workers' ? activeProfile.masterWorkers : activeProfile.masterStopReasons;
+                    const item = list.find(i => i.id === id);
+                    if (item) {
+                        const oldName = item.name;
+                        item.name = newName;
+                        if (type === 'workers') {
+                            activeProfile.days.forEach(day => {
+                                day.functions.forEach(func => {
+                                    const workerIndex = func.workers.indexOf(oldName);
+                                    if (workerIndex > -1) {
+                                        func.workers[workerIndex] = newName;
+                                    }
+                                    Object.keys(func.pieces).forEach(key => {
+                                        if (key.startsWith(`${oldName}_`)) {
+                                            const newKey = key.replace(`${oldName}_`, `${newName}_`);
+                                            func.pieces[newKey] = func.pieces[key];
+                                            delete func.pieces[key];
+                                        }
+                                    });
+                                     Object.keys(func.observations).forEach(key => {
+                                        if (key.startsWith(`${oldName}_`)) {
+                                            const newKey = key.replace(`${oldName}_`, `${newName}_`);
+                                            func.observations[newKey] = func.observations[key];
+                                            delete func.observations[key];
+                                        }
+                                    });
+                                });
+                            });
+                        }
+                    }
+                    break;
+                }
                 case 'ADD_MASTER_DATA': {
                     const { type, name } = action.payload;
                     const targetList = type === 'workers' ? activeProfile.masterWorkers : activeProfile.masterStopReasons;
@@ -331,8 +389,8 @@ const appReducer = produce((draft: AppState, action: Action) => {
                             func.pieces = {};
                             func.observations = {};
                         });
+                        activeProfile.dailyGoal = { ...activeProfile.dailyGoal };
                     } else {
-                        // If no days exist, create today and add a default function
                         newDayId = new Date().toISOString().split('T')[0];
                         const defaultHours = Array.from({ length: 10 }, (_, i) => `${String(i + 8).padStart(2, '0')}:00`);
                         functionsTemplate = [{
@@ -440,39 +498,27 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         const savedState = JSON.parse(savedStateString);
         
         // --- Migration & Validation ---
-        if (!savedState.plan) savedState.plan = 'premium';
-        if (!savedState.profiles || !Array.isArray(savedState.profiles)) {
-            const defaultProfile = createDefaultProfile('Perfil Restaurado');
-            defaultProfile.days = (savedState as any).days || [];
-            savedState.profiles = [defaultProfile];
-        }
-
         savedState.profiles.forEach((p: Profile) => {
-          if (!p.pin) p.pin = '1234';
           if (!p.id) p.id = uuidv4();
+          if (!p.pin) p.pin = '1234';
           if (!p.masterWorkers) p.masterWorkers = createDefaultProfile('').masterWorkers;
           if (!p.masterStopReasons) p.masterStopReasons = createDefaultProfile('').masterStopReasons;
+          if (!p.stopwatch) p.stopwatch = createDefaultStopwatchState();
+          if (!p.stopwatchHistory) p.stopwatchHistory = [];
+          
+          p.stopwatch.isRunning = false;
+          p.stopwatch.time = p.stopwatch.mode === 'countdown' ? p.stopwatch.initialTime : 0;
+          p.stopwatch.pieces = 0;
         });
-        
-        // Clear global master data from old states
-        delete (savedState as any).masterWorkers;
-        delete (savedState as any).masterStopReasons;
+
+        if (savedState.stopwatch) { // Migrate global stopwatch to profiles
+            savedState.profiles[0].stopwatchHistory.push(...savedState.stopwatch.history);
+            delete savedState.stopwatch;
+        }
 
         savedState.activeProfileId = null;
         savedState.currentProfileForLogin = null;
         if (!savedState.announcements) savedState.announcements = [];
-
-        // Reset stopwatch state to avoid bugs, keeping history
-        const initialStopwatch = getInitialState().stopwatch;
-        savedState.stopwatch = {
-          ...initialStopwatch,
-          history: savedState.stopwatch?.history || [],
-          mode: savedState.stopwatch?.mode || 'countdown',
-          initialTime: savedState.stopwatch?.initialTime || 15
-        };
-        savedState.stopwatch.isRunning = false; // Never start running on load
-        savedState.stopwatch.pieces = 0;
-        savedState.stopwatch.time = savedState.stopwatch.mode === 'countdown' ? savedState.stopwatch.initialTime : 0;
         
         return savedState;
       }
@@ -491,18 +537,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   useEffect(() => {
     if (isInitialized) {
       try {
-        // Create a copy of the state to avoid modifying the original object during serialization
         const stateToSave = JSON.parse(JSON.stringify(state));
-
-        // Sanitize the stopwatch state before saving
-        const stopwatchStateToSave = {
-            history: state.stopwatch.history,
-            initialTime: state.stopwatch.initialTime,
-            mode: state.stopwatch.mode,
-            session: state.stopwatch.session,
-        };
-        stateToSave.stopwatch = stopwatchStateToSave;
-        
+        delete stateToSave.stopwatch; // Remove legacy global stopwatch state
         localStorage.setItem(APP_STATE_KEY, JSON.stringify(stateToSave));
       } catch (e) { console.error("Failed to save state.", e) }
     }
@@ -516,14 +552,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, [state.theme, isInitialized]);
   
   useEffect(() => {
-    if (state.stopwatch.isRunning) {
-      timerRef.current = setInterval(() => dispatch({ type: 'TICK' }), 1000);
+    const activeProfile = state.profiles.find(p => p.id === state.activeProfileId);
+
+    if (activeProfile?.stopwatch.isRunning) {
+      timerRef.current = setInterval(() => dispatch({ type: 'TICK', payload: { profileId: activeProfile.id } }), 1000);
     } else if (timerRef.current) {
       clearInterval(timerRef.current);
       timerRef.current = null;
     }
     return () => { if (timerRef.current) clearInterval(timerRef.current) };
-  }, [state.stopwatch.isRunning]);
+  }, [state.activeProfileId, state.profiles]);
   
   const activeProfile = state.profiles.find(p => p.id === state.activeProfileId) || null;
   const activeDay = activeProfile?.days.find(d => d.id === activeProfile.activeDayId) || null;

@@ -9,7 +9,7 @@ import { useAppContext } from '@/contexts/AppContext';
 import { useRouter } from 'next/navigation';
 
 const navItems = [
-  { href: '/dashboard', label: 'Dashboard', icon: Home, plans: ['basic', 'pro', 'premium'] },
+  { href: '/dashboard', label: 'Planilha', icon: Home, plans: ['basic', 'pro', 'premium'] },
   { href: '/stopwatch', label: 'Cronômetro', icon: Timer, plans: ['basic', 'pro', 'premium'] },
   { href: '/announcements', label: 'Mural', icon: MessageSquare, plans: ['pro', 'premium'] },
   { href: '/reports', label: 'Relatórios', icon: FileDown, plans: ['basic', 'pro', 'premium'] },

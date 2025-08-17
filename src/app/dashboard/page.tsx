@@ -217,7 +217,7 @@ const DailyGoalCard = () => {
                     <div className="space-y-2">
                       <h4 className="font-medium leading-none">Definir Meta</h4>
                       <p className="text-sm text-muted-foreground">
-                        Escolha a meta de peças e a função final.
+                        Escolha la meta de peças e a função final.
                       </p>
                     </div>
                     <div className="grid gap-2">
@@ -301,7 +301,7 @@ export default function DashboardPage() {
 
   return (
     <div className="p-4 md:p-6 space-y-4">
-      <Header title={`Dashboard - ${activeProfile.name}`} />
+      <Header title={`Planilha - ${activeProfile.name}`} />
       
       <DaySelector />
 

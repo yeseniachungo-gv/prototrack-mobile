@@ -47,63 +47,67 @@ const timePresets = [
 // --- Main Stopwatch Page Component ---
 
 export default function StopwatchPage() {
-  const { state, dispatch } = useAppContext();
-  const { stopwatch } = state;
+  const { state, dispatch, activeProfile } = useAppContext();
   const { toast } = useToast();
+  
+  if (!activeProfile) return null; // Safeguard
 
-  const [sessionDetails, setSessionDetails] = useState(stopwatch.session);
-
+  const { stopwatch: stopwatchState, id: profileId } = activeProfile;
+  const [stopwatch, setStopwatch] = useState(stopwatchState);
+  
+  // Update local state if global state for this profile changes
   useEffect(() => {
-    if (!stopwatch.isRunning) {
-        setSessionDetails(stopwatch.session);
-    }
-  }, [stopwatch.session, stopwatch.isRunning]);
+    setStopwatch(activeProfile.stopwatch);
+  }, [activeProfile.stopwatch]);
 
-  useEffect(() => {
-    dispatch({ type: 'UPDATE_STOPWATCH_SESSION_DETAILS', payload: sessionDetails });
-  }, [sessionDetails, dispatch]);
-
+  // Dispatch changes from local state to global state
+  const syncState = (newStopwatchState: any) => {
+     dispatch({ type: 'UPDATE_STOPWATCH_STATE', payload: { profileId, stopwatchState: newStopwatchState } });
+  }
 
   const handleStart = () => {
-    if (!sessionDetails.operator.trim() || !sessionDetails.functionName.trim()) {
+    if (!stopwatch.session.operator.trim() || !stopwatch.session.functionName.trim()) {
         toast({ title: 'Atenção', description: 'Preencha o nome do operador e a função para iniciar.', variant: 'destructive'});
         return;
     }
-    dispatch({ type: 'START_TIMER' });
+    dispatch({ type: 'START_TIMER', payload: { profileId } });
   };
   
-  const handleStop = () => dispatch({ type: 'STOP_TIMER' });
-  const handleReset = () => dispatch({ type: 'RESET_TIMER' });
-  const handleAddPiece = () => dispatch({ type: 'ADD_PIECE', payload: 1 });
-  const handleUndoPiece = () => dispatch({ type: 'UNDO_PIECE' });
+  const handleStop = () => dispatch({ type: 'STOP_TIMER', payload: { profileId } });
+  const handleReset = () => dispatch({ type: 'RESET_TIMER', payload: { profileId } });
+  const handleAddPiece = () => dispatch({ type: 'ADD_PIECE', payload: { profileId, amount: 1 } });
+  const handleUndoPiece = () => dispatch({ type: 'UNDO_PIECE', payload: { profileId } });
   
   const handleSetTime = (seconds: number) => {
     if (!stopwatch.isRunning) {
-        dispatch({ type: 'SET_TIMER', payload: seconds });
+        dispatch({ type: 'SET_TIMER', payload: { profileId, seconds } });
     }
   }
 
   const handleModeChange = (mode: string) => {
     if (mode === 'countdown' || mode === 'countup') {
-      dispatch({ type: 'SET_STOPWATCH_MODE', payload: mode });
+      dispatch({ type: 'SET_STOPWATCH_MODE', payload: { profileId, mode: mode as 'countdown' | 'countup' } });
     }
   };
   
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { id, value } = e.target;
-    setSessionDetails(prev => ({
-        ...prev,
+    const newSession = {
+        ...stopwatch.session,
         [id]: id === 'auxiliaryTimePercent' ? parseFloat(value) || 0 : value
-    }));
+    }
+    const newStopwatchState = { ...stopwatch, session: newSession };
+    setStopwatch(newStopwatchState);
+    syncState(newStopwatchState);
   };
-
+  
   const elapsedTime = stopwatch.mode === 'countup' 
     ? stopwatch.time 
     : stopwatch.initialTime - stopwatch.time;
 
   const currentPph = elapsedTime > 0 ? (stopwatch.pieces / elapsedTime) * 3600 : 0;
   
-  const adjustedPieces = stopwatch.pieces * (1 - (sessionDetails.auxiliaryTimePercent / 100));
+  const adjustedPieces = stopwatch.pieces * (1 - (stopwatch.session.auxiliaryTimePercent / 100));
   const adjustedPph = elapsedTime > 0 ? (adjustedPieces / elapsedTime) * 3600 : 0;
   
   const isFinished = stopwatch.mode === 'countdown' && stopwatch.time === 0 && !stopwatch.isRunning;
@@ -164,15 +168,15 @@ export default function StopwatchPage() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                     <Label htmlFor="operator">Operador</Label>
-                    <Input id="operator" placeholder="Nome do operador" value={sessionDetails.operator} onChange={handleInputChange} disabled={stopwatch.isRunning}/>
+                    <Input id="operator" placeholder="Nome do operador" value={stopwatch.session.operator} onChange={handleInputChange} disabled={stopwatch.isRunning}/>
                 </div>
                 <div>
                     <Label htmlFor="functionName">Função</Label>
-                    <Input id="functionName" placeholder="Ex: Costura / Revisão" value={sessionDetails.functionName} onChange={handleInputChange} disabled={stopwatch.isRunning}/>
+                    <Input id="functionName" placeholder="Ex: Costura / Revisão" value={stopwatch.session.functionName} onChange={handleInputChange} disabled={stopwatch.isRunning}/>
                 </div>
                  <div>
                     <Label htmlFor="auxiliaryTimePercent">Tempo auxiliar (%)</Label>
-                    <Input id="auxiliaryTimePercent" type="number" min="0" value={sessionDetails.auxiliaryTimePercent} onChange={handleInputChange} disabled={stopwatch.isRunning}/>
+                    <Input id="auxiliaryTimePercent" type="number" min="0" value={stopwatch.session.auxiliaryTimePercent} onChange={handleInputChange} disabled={stopwatch.isRunning}/>
                 </div>
             </div>
 
@@ -220,7 +224,7 @@ export default function StopwatchPage() {
                 <div className="text-2xl font-bold">{isFinite(currentPph) ? currentPph.toFixed(0) : 0}</div>
             </div>
              <div className="p-4 bg-muted rounded-lg">
-                <div className="text-sm text-muted-foreground">Média Ajustada ({sessionDetails.auxiliaryTimePercent}%)</div>
+                <div className="text-sm text-muted-foreground">Média Ajustada ({stopwatch.session.auxiliaryTimePercent}%)</div>
                 <div className="text-2xl font-bold">{isFinite(adjustedPph) ? adjustedPph.toFixed(0) : 0}</div>
             </div>
              <div className="p-4 bg-muted rounded-lg">
@@ -251,7 +255,7 @@ export default function StopwatchPage() {
                   </AlertDialogHeader>
                   <AlertDialogFooter>
                     <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                    <AlertDialogAction onClick={() => dispatch({ type: 'CLEAR_STOPWATCH_HISTORY' })}>
+                    <AlertDialogAction onClick={() => dispatch({ type: 'CLEAR_STOPWATCH_HISTORY', payload: { profileId } })}>
                       Confirmar
                     </AlertDialogAction>
                   </AlertDialogFooter>
@@ -279,9 +283,7 @@ export default function StopwatchPage() {
                             <TableCell className="text-center">{entry.pieces}</TableCell>
                             <TableCell className="text-center font-mono">{formatTime(entry.duration)}</TableCell>
                             <TableCell className="text-center font-mono">{entry.averagePerHour.toFixed(0)}</TableCell>
-                            <TableCell className="text-right font-mono">
-                                {(entry.adjustedAveragePerHour ?? 0).toFixed(0)}
-                            </TableCell>
+                            <TableCell className="text-right font-mono">{(entry.adjustedAveragePerHour ?? 0).toFixed(0)}</TableCell>
                         </TableRow>
                     ))}
                 </TableBody>

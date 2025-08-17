@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { useAppContext } from '@/contexts/AppContext';
-import { Moon, Sun, Palette, HelpCircle, User, Download, Upload, FileText, Crown, HardHat, AlertTriangle, Trash2, CloudCog } from 'lucide-react';
+import { Moon, Sun, Palette, HelpCircle, User, Download, Upload, FileText, Crown, HardHat, AlertTriangle, Trash2, CloudCog, Edit } from 'lucide-react';
 import {
   Accordion,
   AccordionContent,
@@ -18,10 +18,68 @@ import {
 import { Label } from '@/components/ui/label';
 import Link from 'next/link';
 import type { MasterDataItem } from '@/lib/types';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogClose,
+} from "@/components/ui/dialog"
 
+const MasterDataEditor = ({ item, type, onSave }: { item: MasterDataItem, type: 'workers' | 'reasons', onSave: (id: string, newName: string) => void }) => {
+    const [name, setName] = useState(item.name);
+    const [isOpen, setIsOpen] = useState(false);
+
+    const handleSave = () => {
+        onSave(item.id, name);
+        setIsOpen(false);
+    }
+    
+    return (
+        <Dialog open={isOpen} onOpenChange={setIsOpen}>
+            <DialogTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-7 w-7">
+                    <Edit className="h-4 w-4"/>
+                </Button>
+            </DialogTrigger>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Editar Item</DialogTitle>
+                     <DialogDescription>
+                        Altere o nome do item selecionado. Isso será atualizado em todo o perfil.
+                     </DialogDescription>
+                </DialogHeader>
+                <div className="py-4">
+                    <Label htmlFor="itemName">Nome</Label>
+                    <Input id="itemName" value={name} onChange={(e) => setName(e.target.value)} />
+                </div>
+                <DialogFooter>
+                    <DialogClose asChild>
+                        <Button variant="outline">Cancelar</Button>
+                    </DialogClose>
+                    <Button onClick={handleSave}>Salvar</Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    )
+}
 
 const MasterDataManager = ({ title, icon: Icon, items, type }: { title: string, icon: React.ElementType, items: MasterDataItem[], type: 'workers' | 'reasons' }) => {
-    const { dispatch } = useAppContext();
+    const { dispatch, activeProfile } = useAppContext();
     const [newItemName, setNewItemName] = useState('');
     const { toast } = useToast();
 
@@ -39,6 +97,15 @@ const MasterDataManager = ({ title, icon: Icon, items, type }: { title: string, 
         dispatch({ type: 'DELETE_MASTER_DATA', payload: { type, id }});
         toast({ title: 'Item removido.', variant: 'destructive'});
     }
+
+    const handleEditItem = (id: string, newName: string) => {
+        if (!newName.trim()) {
+            toast({ title: 'Erro', description: 'O nome não pode estar vazio.', variant: 'destructive'});
+            return;
+        }
+        dispatch({ type: 'EDIT_MASTER_DATA', payload: { type, id, newName: newName.trim() } });
+        toast({ title: 'Item atualizado com sucesso!' });
+    };
 
     return (
         <Card>
@@ -62,9 +129,30 @@ const MasterDataManager = ({ title, icon: Icon, items, type }: { title: string, 
                     {items.map(item => (
                         <div key={item.id} className="flex items-center justify-between p-2 bg-muted rounded-md">
                             <span>{item.name}</span>
-                             <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleDeleteItem(item.id)}>
-                                <Trash2 className="h-4 w-4 text-destructive"/>
-                            </Button>
+                            <div className="flex items-center gap-1">
+                                <MasterDataEditor item={item} type={type} onSave={handleEditItem} />
+                                <AlertDialog>
+                                    <AlertDialogTrigger asChild>
+                                        <Button variant="ghost" size="icon" className="h-7 w-7">
+                                            <Trash2 className="h-4 w-4 text-destructive"/>
+                                        </Button>
+                                    </AlertDialogTrigger>
+                                    <AlertDialogContent>
+                                        <AlertDialogHeader>
+                                            <AlertDialogTitle>Excluir "{item.name}"?</AlertDialogTitle>
+                                            <AlertDialogDescription>
+                                                Esta ação não pode ser desfeita.
+                                            </AlertDialogDescription>
+                                        </AlertDialogHeader>
+                                        <AlertDialogFooter>
+                                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                            <AlertDialogAction onClick={() => handleDeleteItem(item.id)}>
+                                                Confirmar
+                                            </AlertDialogAction>
+                                        </AlertDialogFooter>
+                                    </AlertDialogContent>
+                                </AlertDialog>
+                            </div>
                         </div>
                     ))}
                      {items.length === 0 && (
@@ -87,7 +175,9 @@ export default function SettingsPage() {
   const [newPin, setNewPin] = useState('');
   const [confirmPin, setConfirmPin] = useState('');
   
-  const hasProOrPremium = state.plan === 'pro' || state.plan === 'premium';
+  const hasProPlan = state.plan === 'pro' || state.plan === 'premium';
+  const hasPremiumPlan = state.plan === 'premium';
+
 
   const toggleTheme = () => {
     const newTheme = state.theme === 'dark' ? 'light' : 'dark';
@@ -284,7 +374,7 @@ export default function SettingsPage() {
               </AccordionTrigger>
               <AccordionContent className="pt-4 px-6 space-y-4">
                   <div className="flex flex-wrap gap-2">
-                    <Button onClick={handleExportCSV} disabled={!activeProfile?.activeDayId} variant="outline">
+                    <Button onClick={handleExportCSV} disabled={!hasProPlan || !activeProfile?.activeDayId} variant="outline" title={!hasProPlan ? 'Funcionalidade Pro/Premium' : ''}>
                       <FileText className="mr-2"/> Exportar CSV do Dia
                     </Button>
                     <Button onClick={handleBackup} variant="outline" disabled={!activeProfile}>
@@ -301,7 +391,7 @@ export default function SettingsPage() {
                       accept=".json"
                     />
                 </div>
-                {hasProOrPremium && (
+                {hasProPlan && (
                     <div className="flex items-center gap-2 text-sm text-muted-foreground p-3 bg-muted rounded-lg">
                         <CloudCog className="h-5 w-5 text-primary" />
                         <span>O backup automático na nuvem está ativo para este plano.</span>
@@ -348,7 +438,7 @@ export default function SettingsPage() {
               <AccordionContent className="pt-4 space-y-2 text-muted-foreground">
                 <p>Bem-vindo ao GiraTempo! Aqui estão algumas dicas:</p>
                 <ul className="list-disc pl-5">
-                    <li>Use a aba <strong>Dashboard</strong> para gerenciar suas funções de produção diárias.</li>
+                    <li>Use a aba <strong>Planilha</strong> para gerenciar suas funções de produção diárias.</li>
                     <li>O <strong>Cronômetro</strong> é ideal para medições de tempo precisas de um operador.</li>
                     <li>Acesse <strong>Relatórios</strong> para análises automáticas e exportação de dados.</li>
                     <li>Use o <strong>Mural</strong> para se comunicar com outras equipes.</li>
