@@ -24,20 +24,22 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 
 const AdminProductionChart = () => {
     const { state } = useAppContext();
-    const [selectedDayId, setSelectedDayId] = useState<string | null>(state.profiles[0]?.activeDayId || null);
+    const [selectedDayId, setSelectedDayId] = useState<string | null>(null);
 
     const allDays = useMemo(() => {
         const daysSet = new Set<string>();
         state.profiles.forEach(p => p.days.forEach(d => daysSet.add(d.id)));
         return Array.from(daysSet).sort((a,b) => new Date(b).getTime() - new Date(a).getTime());
     }, [state.profiles]);
-    
-    // Correction: If the selectedDayId is no longer valid, reset to the first available day.
-    if (allDays.length > 0 && selectedDayId && !allDays.includes(selectedDayId)) {
-        setSelectedDayId(allDays[0]);
-    } else if (allDays.length > 0 && !selectedDayId) {
-        setSelectedDayId(allDays[0]);
-    }
+
+    React.useEffect(() => {
+        // If the selectedDayId is no longer valid or null, reset to the first available day.
+        if (allDays.length > 0 && (!selectedDayId || !allDays.includes(selectedDayId))) {
+            setSelectedDayId(allDays[0]);
+        } else if (allDays.length === 0) {
+            setSelectedDayId(null);
+        }
+    }, [allDays, selectedDayId]);
     
     if (allDays.length === 0) {
         return <div className="text-center text-muted-foreground py-8">Nenhum dia com dados encontrado.</div>;
@@ -233,7 +235,7 @@ export default function AdminPage() {
 
   const handleGenerateConsolidatedReport = async () => {
     if (!isOnline) {
-      toast({ title: 'Funcionalidade offline', description: 'A geração de relatórios por IA requer conexão com a internet.', variant: 'destructive'});
+      toast({ title: 'Funcionalidade offline', description: 'A geração de relatórios requer conexão com a internet.', variant: 'destructive'});
       return;
     }
     const allDaysSet = new Set<string>();
@@ -319,7 +321,7 @@ export default function AdminPage() {
 
         <Card>
             <CardHeader>
-                <CardTitle className="flex items-center gap-2"><ShieldCheck /> Relatórios Consolidados</CardTitle>
+                <CardTitle className="flex items-center gap-2"><ShieldCheck /> Análises Consolidadas</CardTitle>
                 <CardDescription>
                     Gere análises detalhadas combinando os dados de todos os perfis para o dia mais recente.
                      {!hasAI && <span className="text-amber-500 block mt-1"> (Funcionalidade Pro/Premium)</span>}
@@ -329,7 +331,7 @@ export default function AdminPage() {
            <CardContent>
             <Button onClick={handleGenerateConsolidatedReport} disabled={isGenerating || !hasAI || !isOnline}>
                 {isGenerating ? <Loader2 className="mr-2 animate-spin"/> : !isOnline ? <WifiOff className="mr-2"/> : <BookCheck className="mr-2" />}
-                Gerar Relatório Automático
+                Gerar Relatório Consolidado
             </Button>
           </CardContent>
         </Card>

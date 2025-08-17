@@ -85,8 +85,6 @@ export default function ReportsPage() {
     };
   }, []);
 
-  const hasAI = state.plan === 'pro' || state.plan === 'premium';
-
   const filteredDays = useMemo(() => {
     if (!activeProfile) return [];
     
@@ -112,7 +110,7 @@ export default function ReportsPage() {
   // --- Action Handlers ---
   const handleGenerateDailyReport = async () => {
     if (!isOnline) {
-      toast({ title: 'Funcionalidade offline', description: 'A geração de relatórios por IA requer conexão com a internet.', variant: 'destructive'});
+      toast({ title: 'Funcionalidade offline', description: 'A geração de relatórios requer conexão com a internet.', variant: 'destructive'});
       return;
     }
     const activeDay = activeProfile?.days.find(d => d.id === activeProfile.activeDayId);
@@ -168,12 +166,11 @@ export default function ReportsPage() {
           <CardTitle>Análises Automáticas</CardTitle>
           <CardDescription>
             Gere resumos e análises a partir dos dados de produção do dia selecionado no dashboard.
-            {!hasAI && <span className="text-amber-500 block mt-1"> (Funcionalidade Pro/Premium)</span>}
             {!isOnline && <span className="text-amber-500 block mt-1"> (Requer Internet)</span>}
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col sm:flex-row gap-4">
-          <Button onClick={handleGenerateDailyReport} disabled={!activeProfile?.activeDayId || isGenerating || !hasAI || !isOnline}>
+          <Button onClick={handleGenerateDailyReport} disabled={!activeProfile?.activeDayId || isGenerating || !isOnline}>
             {isGenerating ? <Loader2 className="mr-2 animate-spin"/> : !isOnline ? <WifiOff className="mr-2"/> : <BookCheck className="mr-2" />}
             Gerar Resumo do Dia
           </Button>
