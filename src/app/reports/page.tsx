@@ -75,8 +75,6 @@ export default function ReportsPage() {
   const [isReportOpen, setIsReportOpen] = useState(false);
   const [selectedPeriod, setSelectedPeriod] = useState<Period>('7d');
 
-  const isAdmin = useMemo(() => state.profiles.some(p => p.id === state.activeProfileId), [state.profiles, state.activeProfileId]);
-  
   const filteredDays = useMemo(() => {
     if (!activeProfile) return [];
     
@@ -165,20 +163,6 @@ export default function ReportsPage() {
     }
   };
   
-  const handleGenerateReport = async () => {
-      if (!activeProfile) return;
-      setIsGenerating(true);
-
-      const isConsolidated = true; // Placeholder for future logic
-
-      if (isConsolidated && isAdmin) {
-          await handleGenerateConsolidatedReport();
-      } else {
-          await handleGenerateDailyReport();
-      }
-      setIsGenerating(false);
-  };
-  
   const handleGenerateDailyReport = async () => {
     const activeDay = activeProfile?.days.find(d => d.id === activeProfile.activeDayId);
     if (!activeDay || !activeProfile) {
@@ -204,44 +188,6 @@ export default function ReportsPage() {
       toast({ title: 'Erro ao gerar relatório', description: 'Não foi possível se conectar com o serviço de análise.', variant: 'destructive' });
     } finally {
       setIsGenerating(false);
-    }
-  };
-
-  const handleGenerateConsolidatedReport = async () => {
-    const activeDay = activeProfile?.days.find(d => d.id === activeProfile.activeDayId);
-    if (!activeDay) {
-        toast({ title: "Nenhum dia selecionado", variant: "destructive" });
-        return;
-    }
-    setIsGenerating(true);
-    try {
-        const allProfilesData = state.profiles.map(profile => {
-            const dayData = profile.days.find(d => d.id === activeDay.id);
-            return {
-                profileName: profile.name,
-                productionData: dayData ? dayData.functions : []
-            };
-        }).filter(p => p.productionData.length > 0);
-
-        if (allProfilesData.length === 0) {
-            toast({ title: "Sem dados para o dia", variant: "destructive" });
-            setIsGenerating(false);
-            return;
-        }
-
-        const report = await generateConsolidatedReport({
-            reportDate: activeDay.id,
-            allProfilesData: JSON.stringify(allProfilesData),
-        });
-
-        setReportData(report);
-        setReportType('consolidated');
-        setIsReportOpen(true);
-    } catch (err) {
-        console.error("Erro ao gerar relatório consolidado:", err);
-        toast({ title: 'Erro ao gerar relatório', description: 'Não foi possível se conectar com o serviço de análise.', variant: 'destructive' });
-    } finally {
-        setIsGenerating(false);
     }
   };
 
@@ -297,13 +243,6 @@ export default function ReportsPage() {
             {isGenerating ? <Loader2 className="mr-2 animate-spin"/> : <BookCheck className="mr-2" />}
             Gerar Resumo do Dia (Perfil Atual)
           </Button>
-          
-          {isAdmin && (
-            <Button onClick={handleGenerateConsolidatedReport} disabled={!activeProfile?.activeDayId || isGenerating} variant="secondary">
-                {isGenerating ? <Loader2 className="mr-2 animate-spin"/> : <ShieldCheck className="mr-2" />}
-                Gerar Relatório Consolidado (Todos Perfis)
-            </Button>
-          )}
         </CardContent>
       </Card>
 
