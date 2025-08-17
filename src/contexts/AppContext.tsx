@@ -15,7 +15,7 @@ type Action =
   | { type: 'DUPLICATE_FUNCTION', payload: { dayId: string, functionId: string, newName: string } }
   | { type: 'CLEAR_FUNCTION_VALUES', payload: { dayId: string, functionId: string } }
   | { type: 'UPDATE_FUNCTION'; payload: { dayId: string, functionData: FunctionEntry } }
-  | { type: 'DELETE_HOUR', payload: { dayId: string, functionId: string, hourIndex: number } }
+  | { type: 'DELETE_HOUR'; payload: { dayId: string, functionId: string, hourIndex: number } }
   | { type: 'UPDATE_OBSERVATION'; payload: { dayId: string, functionId: string, observation: Observation } }
   | { type: 'ADD_HISTORY_ENTRY'; payload: { dayId: string; entry: HistoryEntry } }
   | { type: 'CLEAR_HISTORY'; payload: { dayId: string } }
