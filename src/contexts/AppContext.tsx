@@ -15,6 +15,7 @@ type Action =
   | { type: 'DUPLICATE_FUNCTION', payload: { dayId: string, functionId: string, newName: string } }
   | { type: 'CLEAR_FUNCTION_VALUES', payload: { dayId: string, functionId: string } }
   | { type: 'UPDATE_FUNCTION'; payload: { dayId: string, functionData: FunctionEntry } }
+  | { type: 'DELETE_HOUR', payload: { dayId: string, functionId: string, hourIndex: number } }
   | { type: 'UPDATE_OBSERVATION'; payload: { dayId: string, functionId: string, observation: Observation } }
   | { type: 'ADD_HISTORY_ENTRY'; payload: { dayId: string; entry: HistoryEntry } }
   | { type: 'CLEAR_HISTORY'; payload: { dayId: string } }
@@ -159,6 +160,21 @@ const appReducer = (state: AppState, action: Action): AppState => {
                 const funcIndex = day.functions.findIndex(f => f.id === action.payload.functionData.id);
                 if(funcIndex !== -1) {
                     day.functions[funcIndex] = action.payload.functionData;
+                }
+            }
+            break;
+        }
+
+        case 'DELETE_HOUR': {
+            const { dayId, functionId, hourIndex } = action.payload;
+            const day = draft.days.find(d => d.id === dayId);
+            if (day) {
+                const func = day.functions.find(f => f.id === functionId);
+                if (func && func.hours.length > 1) { // Prevent deleting the last hour
+                    const deletedHour = func.hours[hourIndex];
+                    func.hours.splice(hourIndex, 1);
+                    // Also remove corresponding observation values
+                    func.observations = func.observations.filter(obs => obs.hour !== deletedHour);
                 }
             }
             break;

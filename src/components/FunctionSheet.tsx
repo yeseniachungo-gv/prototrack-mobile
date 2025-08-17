@@ -10,7 +10,7 @@ import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Label } from './ui/label';
 import { Textarea } from './ui/textarea';
 import { Observation } from '@/lib/types';
-import { AlertTriangle, MessageSquare, Tag } from 'lucide-react';
+import { AlertTriangle, MessageSquare, Tag, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 
@@ -167,6 +167,17 @@ export default function FunctionSheet({ dayId, funcId, isOpen, onClose }: Functi
     const updatedFunction = { ...func, hours: updatedHours };
     dispatch({ type: 'UPDATE_FUNCTION', payload: { dayId: day.id, functionData: updatedFunction } });
   };
+  
+  const handleDeleteHour = (hourIndex: number) => {
+      if (!day || !func) return;
+      if (func.hours.length <= 1) {
+          toast({ title: "Deve haver pelo menos uma hora.", variant: "destructive" });
+          return;
+      }
+      if (confirm(`Tem certeza que deseja remover a coluna ${func.hours[hourIndex]}?`)) {
+          dispatch({ type: 'DELETE_HOUR', payload: { dayId: day.id, functionId: func.id, hourIndex } });
+      }
+  };
 
   const handleClearSheet = () => {
     if (!day || !func || !confirm("Zerar todos os valores desta planilha?")) return;
@@ -211,8 +222,15 @@ export default function FunctionSheet({ dayId, funcId, isOpen, onClose }: Functi
               <thead className="sticky top-0 bg-card z-10">
                 <tr>
                   <th className="p-2 border font-bold min-w-[170px] text-left sticky left-0 bg-card z-20">Trabalhador</th>
-                  {func.hours.map(hour => (
-                    <th key={hour} className="p-2 border font-bold min-w-[110px]">{hour}</th>
+                  {func.hours.map((hour, hourIndex) => (
+                    <th key={hour} className="p-2 border font-bold min-w-[110px]">
+                      <div className="flex items-center justify-center gap-1">
+                        <span>{hour}</span>
+                        <Button variant="ghost" size="icon" className="w-6 h-6 shrink-0" onClick={() => handleDeleteHour(hourIndex)}>
+                          <X className="w-4 h-4 text-red-500"/>
+                        </Button>
+                      </div>
+                    </th>
                   ))}
                   <th className="p-2 border font-bold min-w-[80px] sticky right-0 bg-card z-20">Total</th>
                 </tr>
@@ -223,7 +241,7 @@ export default function FunctionSheet({ dayId, funcId, isOpen, onClose }: Functi
                     <td className="p-1 border align-middle sticky left-0 bg-card z-10">
                        <div className="flex items-center gap-1">
                           <Button variant="ghost" size="icon" className="w-7 h-7 shrink-0" onClick={() => handleDeleteWorker(workerIndex)}>
-                            <span className="text-red-500 text-xl">×</span>
+                            <X className="w-5 h-5 text-red-500" />
                           </Button>
                           <Input
                             value={worker}
