@@ -30,6 +30,7 @@ type Action =
   | { type: 'ADD_PROFILE'; payload: string }
   | { type: 'DELETE_PROFILE'; payload: string }
   | { type: 'SET_ACTIVE_PROFILE'; payload: string | null }
+  | { type: 'SET_CURRENT_PROFILE_FOR_LOGIN'; payload: string | null }
   | { type: 'UPDATE_PROFILE_DETAILS', payload: { profileId: string; name: string; pin: string } };
 
 
@@ -68,6 +69,7 @@ function getInitialState(): AppState {
   return {
     profiles: [createDefaultProfile('Perfil Padrão')],
     activeProfileId: null, 
+    currentProfileForLogin: null,
     theme: 'dark',
     stopwatch: {
         mode: 'countdown',
@@ -137,12 +139,11 @@ const appReducer = (state: AppState, action: Action): AppState => {
                             adjustedAveragePerHour: adjustedPph,
                         });
                     }
-                    if (draft.stopwatch.mode === 'countdown') {
-                        draft.stopwatch.time = draft.stopwatch.initialTime;
-                    } else {
-                        draft.stopwatch.time = 0;
+                    if (draft.stopwatch.mode === 'countdown' && draft.stopwatch.time === 0) {
+                         draft.stopwatch.time = draft.stopwatch.initialTime;
                     }
                     draft.stopwatch.pieces = 0;
+
                 } else {
                     draft.stopwatch.isRunning = true;
                 }
@@ -204,7 +205,11 @@ const appReducer = (state: AppState, action: Action): AppState => {
                 return;
             case 'SET_ACTIVE_PROFILE':
                 draft.activeProfileId = action.payload;
+                draft.currentProfileForLogin = null;
                 return;
+            case 'SET_CURRENT_PROFILE_FOR_LOGIN':
+                 draft.currentProfileForLogin = action.payload;
+                 return;
             case 'UPDATE_PROFILE_DETAILS':
                 const profileToUpdate = draft.profiles.find(p => p.id === action.payload.profileId);
                 if (profileToUpdate) {
@@ -417,6 +422,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         
         // Garante que nenhum perfil esteja ativo ao iniciar
         savedState.activeProfileId = null;
+        savedState.currentProfileForLogin = null;
 
         // Reseta o estado do cronômetro para evitar bugs
         const initialStopwatch = getInitialState().stopwatch;

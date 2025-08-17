@@ -57,6 +57,7 @@ export interface Profile {
 export interface AppState {
   profiles: Profile[];
   activeProfileId: string | null;
+  currentProfileForLogin: string | null;
   theme: 'light' | 'dark';
   stopwatch: StopwatchState;
 }

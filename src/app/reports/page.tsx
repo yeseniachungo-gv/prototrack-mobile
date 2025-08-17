@@ -13,6 +13,7 @@ import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAx
 import { generateDailyReport, GenerateDailyReportOutput } from '@/ai/flows/generate-daily-report';
 import { generateConsolidatedReport, GenerateConsolidatedReportOutput } from '@/ai/flows/generate-consolidated-report';
 import ReportDialog from '@/components/ReportDialog';
+import { useRouter } from 'next/navigation';
 
 // Componente do Gráfico de Produção
 const ProductionChart = ({ data }: { data: FunctionEntry[] }) => {
@@ -45,6 +46,7 @@ const ProductionChart = ({ data }: { data: FunctionEntry[] }) => {
 export default function ReportsPage() {
   const { state, dispatch, activeProfile, activeDay } = useAppContext();
   const { toast } = useToast();
+  const router = useRouter();
   const restoreInputRef = useRef<HTMLInputElement>(null);
   
   const [isGenerating, setIsGenerating] = useState(false);
@@ -52,10 +54,14 @@ export default function ReportsPage() {
   const [reportType, setReportType] = useState<'daily' | 'consolidated' | null>(null);
   const [isReportOpen, setIsReportOpen] = useState(false);
 
+  // Verifica se o usuário é admin. Por enquanto, qualquer um pode ver o botão.
+  // Futuramente, essa lógica será baseada no perfil logado.
+  const isAdmin = state.profiles.some(p => p.id === state.activeProfileId); // Lógica de admin temporária
+
   // --- Handlers de Ações ---
   const handleExportCSV = (day: Day) => {
     if (!day) {
-      toast({ title: 'Nenhum dia selecionado', description: 'Por favor, selecione um dia na aba Dashboard.', variant: 'destructive' });
+      toast({ title: 'Nenhum dia selecionado', description: 'Por favor, selecione um dia no Dashboard.', variant: 'destructive' });
       return;
     }
     // ... (lógica de exportação CSV inalterada)
@@ -100,7 +106,7 @@ export default function ReportsPage() {
     if (!activeDay) {
         toast({
             title: "Nenhum dia selecionado",
-            description: "Por favor, selecione um dia em qualquer perfil para gerar um relatório consolidado.",
+            description: "Para gerar um relatório consolidado, primeiro selecione um dia no Dashboard.",
             variant: "destructive"
         });
         return;
@@ -117,6 +123,7 @@ export default function ReportsPage() {
 
         if (allProfilesData.length === 0) {
             toast({ title: "Sem dados para o dia", description: "Nenhum perfil possui dados de produção para o dia selecionado.", variant: "destructive" });
+            setIsGenerating(false);
             return;
         }
 
@@ -178,9 +185,9 @@ export default function ReportsPage() {
       
       <Card>
         <CardHeader>
-          <CardTitle>Análises Inteligentes</CardTitle>
+          <CardTitle>Análises Automáticas</CardTitle>
           <CardDescription>
-            Gere resumos gerenciais a partir dos dados de produção.
+            Gere resumos e análises a partir dos dados de produção.
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col sm:flex-row gap-4">
@@ -188,7 +195,7 @@ export default function ReportsPage() {
             {isGenerating ? <Loader2 className="mr-2 animate-spin"/> : <BookCheck className="mr-2" />}
             Gerar Resumo do Dia (Perfil Atual)
           </Button>
-          {/* Futuramente, podemos mostrar este botão apenas se o usuário for admin */}
+          
           <Button onClick={handleGenerateConsolidatedReport} disabled={!activeDay || isGenerating} variant="secondary">
             {isGenerating ? <Loader2 className="mr-2 animate-spin"/> : <ShieldCheck className="mr-2" />}
             Gerar Relatório Consolidado
@@ -198,7 +205,7 @@ export default function ReportsPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Gráficos de Produção</CardTitle>
+          <CardTitle>Gráfico de Produção do Perfil</CardTitle>
            <CardDescription>
             Produção total por função para o dia selecionado no perfil ativo.
           </CardDescription>
@@ -208,7 +215,7 @@ export default function ReportsPage() {
             <ProductionChart data={activeDay.functions}/>
           ) : (
              <p className="text-muted-foreground text-center py-4">
-                {activeDay ? 'Nenhuma função para exibir.' : 'Selecione um dia para ver os gráficos.'}
+                {activeDay ? 'Nenhuma função para exibir.' : 'Selecione um dia no Dashboard para ver os gráficos.'}
              </p>
           )}
         </CardContent>

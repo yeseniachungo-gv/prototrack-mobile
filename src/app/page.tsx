@@ -16,9 +16,8 @@ export default function ProfileSelectionPage() {
   const router = useRouter();
 
   const handleSelectProfile = (profileId: string) => {
-    // Futuramente, aqui podemos adicionar a lógica de pedir o PIN
-    dispatch({ type: 'SET_ACTIVE_PROFILE', payload: profileId });
-    router.push('/dashboard');
+    dispatch({ type: 'SET_CURRENT_PROFILE_FOR_LOGIN', payload: profileId });
+    router.push(`/login?profileId=${profileId}`);
   };
 
   const handleEditProfile = (e: React.MouseEvent, profileId: string) => {
