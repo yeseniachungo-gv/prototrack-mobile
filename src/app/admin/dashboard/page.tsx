@@ -4,7 +4,7 @@
 import React, { useState, useMemo } from 'react';
 import Header from '@/components/Header';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { ShieldCheck, Users, BarChart2, Loader2, BookCheck, WifiOff, Timer, CalendarRange, Lock } from 'lucide-react';
+import { ShieldCheck, Users, BarChart2, Loader2, BookCheck, WifiOff, Timer, CalendarRange, Lock, Trash2 } from 'lucide-react';
 import { useAppContext } from '@/contexts/AppContext';
 import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import ReportDialog from '@/components/ReportDialog';
@@ -26,15 +26,14 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 
 type Period = '7d' | '14d' | '30d' | 'all';
 
-const AdminProductionChart = () => {
+const AdminProductionChart = ({ period }: { period: Period }) => {
     const { state } = useAppContext();
-    const [selectedPeriod, setSelectedPeriod] = useState<Period>('7d');
 
     const filteredDaysData = useMemo(() => {
         const endDate = new Date();
         let startDate: Date;
 
-        switch (selectedPeriod) {
+        switch (period) {
             case '7d': startDate = subDays(endDate, 7); break;
             case '14d': startDate = subDays(endDate, 14); break;
             case '30d': startDate = subDays(endDate, 30); break;
@@ -56,7 +55,7 @@ const AdminProductionChart = () => {
 
         return Object.entries(productionByProfile).map(([name, produção]) => ({ name, produção })).filter(d => d.produção > 0);
 
-    }, [state.profiles, selectedPeriod]);
+    }, [state.profiles, period]);
 
     const chartData = filteredDaysData.sort((a,b) => b.produção - a.produção);
     
@@ -64,46 +63,31 @@ const AdminProductionChart = () => {
         return <div className="text-center text-muted-foreground py-8">Nenhum dia com dados encontrado.</div>;
     }
 
-    return (
-      <div className="space-y-4">
-        <div className="w-full sm:w-auto">
-             <Select value={selectedPeriod} onValueChange={(v) => setSelectedPeriod(v as Period)}>
-                <SelectTrigger className="w-full sm:w-[280px]">
-                    <CalendarRange className="h-4 w-4 mr-2" />
-                    <SelectValue placeholder="Selecione um período" />
-                </SelectTrigger>
-                <SelectContent>
-                    <SelectItem value="7d">Últimos 7 dias</SelectItem>
-                    <SelectItem value="14d">Últimos 14 dias</SelectItem>
-                    <SelectItem value="30d">Últimos 30 dias</SelectItem>
-                    <SelectItem value="all">Todo o período</SelectItem>
-                </SelectContent>
-            </Select>
-        </div>
-
-        {chartData.length > 0 ? (
-            <ResponsiveContainer width="100%" height={350}>
-                <BarChart data={chartData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                    <XAxis dataKey="name" stroke="hsl(var(--muted-foreground))" fontSize={12} />
-                    <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} />
-                    <Tooltip 
-                        contentStyle={{
-                            backgroundColor: 'hsl(var(--card))',
-                            borderColor: 'hsl(var(--border))',
-                            color: 'hsl(var(--card-foreground))'
-                        }}
-                    />
-                    <Legend wrapperStyle={{fontSize: "14px"}}/>
-                    <Bar dataKey="produção" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
-                </BarChart>
-            </ResponsiveContainer>
-        ) : (
+    if (chartData.length === 0) {
+        return (
              <div className="text-center text-muted-foreground py-8">
                 Nenhum dado de produção encontrado para este período.
             </div>
-        )}
-      </div>
+        );
+    }
+
+    return (
+        <ResponsiveContainer width="100%" height={350}>
+            <BarChart data={chartData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                <XAxis dataKey="name" stroke="hsl(var(--muted-foreground))" fontSize={12} />
+                <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} />
+                <Tooltip 
+                    contentStyle={{
+                        backgroundColor: 'hsl(var(--card))',
+                        borderColor: 'hsl(var(--border))',
+                        color: 'hsl(var(--card-foreground))'
+                    }}
+                />
+                <Legend wrapperStyle={{fontSize: "14px"}}/>
+                <Bar dataKey="produção" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+            </BarChart>
+        </ResponsiveContainer>
     );
 };
 
@@ -245,7 +229,7 @@ const ProfileManager = () => {
                          <AlertDialog>
                             <AlertDialogTrigger asChild>
                               <Button type="button" variant="destructive" size="icon" disabled={profiles.length <= 1}>
-                                <Lock className="h-4 w-4"/>
+                                <Trash2 className="h-4 w-4"/>
                               </Button>
                             </AlertDialogTrigger>
                             <AlertDialogContent>
@@ -370,15 +354,33 @@ export default function AdminDashboardPage() {
       <div className="grid grid-cols-1 lg:grid-cols-1 gap-4">
           <Card className="lg:col-span-1">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <BarChart2 className="text-primary" /> Análise Comparativa de Perfis
-              </CardTitle>
-              <CardDescription>
-                Visualize e compare a produção total de cada perfil por período.
-              </CardDescription>
+             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    <BarChart2 className="text-primary" /> Análise Comparativa de Perfis
+                  </CardTitle>
+                  <CardDescription>
+                    Visualize e compare a produção total de cada perfil por período.
+                  </CardDescription>
+                </div>
+                 <div className="w-full sm:w-auto">
+                    <Select value={selectedPeriod} onValueChange={(v) => setSelectedPeriod(v as Period)}>
+                        <SelectTrigger className="w-full sm:w-[180px]">
+                            <CalendarRange className="h-4 w-4 mr-2" />
+                            <SelectValue placeholder="Selecione um período" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="7d">Últimos 7 dias</SelectItem>
+                            <SelectItem value="14d">Últimos 14 dias</SelectItem>
+                            <SelectItem value="30d">Últimos 30 dias</SelectItem>
+                            <SelectItem value="all">Todo o período</SelectItem>
+                        </SelectContent>
+                    </Select>
+                 </div>
+              </div>
             </CardHeader>
             <CardContent>
-                <AdminProductionChart />
+                <AdminProductionChart period={selectedPeriod} />
             </CardContent>
           </Card>
         
