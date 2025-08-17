@@ -1,4 +1,4 @@
-
+// src/lib/types.ts
 
 export interface Announcement {
   id: string;
@@ -66,7 +66,7 @@ export interface Profile {
 export interface AppState {
   profiles: Profile[];
   activeProfileId: string | null;
-  currentProfileForLogin: string | null;
+  currentProfileForLogin: string | null; // Used to know which profile is trying to log in
   theme: 'light' | 'dark';
   stopwatch: StopwatchState;
   announcements: Announcement[];

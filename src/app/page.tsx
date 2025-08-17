@@ -21,6 +21,7 @@ export default function ProfileSelectionPage() {
 
   const handleGoToAdmin = (e: React.MouseEvent) => {
     e.stopPropagation();
+    // For now, admin access is direct. Later, it could have its own login.
     router.push('/admin');
   };
 

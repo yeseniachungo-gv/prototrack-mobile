@@ -8,14 +8,13 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { useAppContext } from '@/contexts/AppContext';
-import { Moon, Sun, Palette, Bell, HelpCircle, KeyRound, User, Download, Upload, FileText } from 'lucide-react';
+import { Moon, Sun, Palette, Bell, HelpCircle, User, Download, Upload, FileText } from 'lucide-react';
 import {
   Accordion,
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import Link from 'next/link';
 import { Label } from '@/components/ui/label';
 
 export default function SettingsPage() {

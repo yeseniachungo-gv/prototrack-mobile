@@ -11,7 +11,7 @@ import { useRouter } from 'next/navigation';
 const navItems = [
   { href: '/dashboard', label: 'Dashboard', icon: Home },
   { href: '/stopwatch', label: 'Cronômetro', icon: Timer },
-  { href: '/announcements', label: 'Comunicados', icon: MessageSquare },
+  { href: '/announcements', label: 'Mural', icon: MessageSquare },
   { href: '/reports', label: 'Relatórios', icon: FileDown },
   { href: '/settings', label: 'Config.', icon: Settings },
 ];

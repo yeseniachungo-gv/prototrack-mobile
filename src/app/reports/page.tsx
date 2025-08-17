@@ -1,7 +1,7 @@
 // src/app/reports/page.tsx
 "use client";
 
-import React, { useRef, useState, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import Header from '@/components/Header';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -15,7 +15,7 @@ import ReportDialog from '@/components/ReportDialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { subDays, format, parseISO } from 'date-fns';
 
-// --- Tipos e Funções Auxiliares ---
+// --- Types and Helper Functions ---
 type Period = '7d' | '14d' | '30d' | 'all';
 
 const getPeriodLabel = (period: Period) => {
@@ -28,7 +28,7 @@ const getPeriodLabel = (period: Period) => {
   }
 };
 
-// Componente do Gráfico de Produção por Tendência
+// Production Trend Chart Component
 const ProductionTrendChart = ({ days }: { days: Day[] }) => {
   const chartData = days.map(day => {
     const totalPieces = day.functions.reduce((total, func) => {
@@ -62,7 +62,7 @@ const ProductionTrendChart = ({ days }: { days: Day[] }) => {
 };
 
 
-// Componente principal da Página de Relatórios
+// Main Reports Page Component
 export default function ReportsPage() {
   const { activeProfile } = useAppContext();
   const { toast } = useToast();
@@ -94,7 +94,7 @@ export default function ReportsPage() {
 
   }, [activeProfile, selectedPeriod]);
 
-  // --- Handlers de Ações ---
+  // --- Action Handlers ---
   const handleGenerateDailyReport = async () => {
     const activeDay = activeProfile?.days.find(d => d.id === activeProfile.activeDayId);
     if (!activeDay || !activeProfile) {

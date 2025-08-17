@@ -1,9 +1,9 @@
-
+// src/app/stopwatch/page.tsx
 "use client";
 
 import React, { useState } from 'react';
 import Header from '@/components/Header';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useAppContext } from '@/contexts/AppContext';
 import { Play, Pause, RotateCcw } from 'lucide-react';
@@ -13,7 +13,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 
-// Função para formatar o tempo de segundos para MM:SS
+// Function to format time from seconds to MM:SS
 const formatTime = (timeInSeconds: number) => {
   const minutes = Math.floor(timeInSeconds / 60).toString().padStart(2, '0');
   const seconds = (timeInSeconds % 60).toString().padStart(2, '0');
@@ -33,10 +33,10 @@ export default function StopwatchPage() {
   const { state, dispatch } = useAppContext();
   const { stopwatch } = state;
   
-  // Estados locais para os inputs
+  // Local states for inputs
   const [operator, setOperator] = useState('');
   const [func, setFunc] = useState('');
-  const [auxTime, setAuxTime] = useState(8.3); // Padrão 8.3% (5 min/hora)
+  const [auxTime, setAuxTime] = useState(8.3); // Default 8.3% (5 min/hour)
 
   const handleToggleTimer = () => {
     dispatch({ 
@@ -210,5 +210,3 @@ export default function StopwatchPage() {
     </div>
   );
 }
-
-    

@@ -16,14 +16,14 @@ export default function DashboardLayout({
   const router = useRouter();
 
   useEffect(() => {
-    // Se não houver perfil ativo, redireciona para a tela de seleção
+    // If there is no active profile, redirect to the selection screen
     if (!activeProfile) {
       router.replace('/');
     }
   }, [activeProfile, router]);
 
   if (!activeProfile) {
-    // Mostra um loader ou uma mensagem enquanto redireciona
+    // Shows a loader or a message while redirecting
     return (
         <div className="flex items-center justify-center min-h-screen">
              <Card>
@@ -38,6 +38,6 @@ export default function DashboardLayout({
     );
   }
 
-  // Se houver um perfil ativo, renderiza o conteúdo do dashboard
+  // If there is an active profile, render the dashboard content
   return <>{children}</>;
 }

@@ -151,7 +151,7 @@ const ProfileManager = () => {
                     <Card key={profile.id} className="flex items-center justify-between p-4">
                        <div>
                          <p className="font-bold">{profile.name}</p>
-                         <p className="text-sm text-muted-foreground">ID: {profile.id}</p>
+                         <p className="text-sm text-muted-foreground">PIN: {profile.pin}</p>
                        </div>
                        <div className="flex items-center gap-2">
                         <Input
@@ -199,7 +199,6 @@ export default function AdminPage() {
   const [isReportOpen, setIsReportOpen] = useState(false);
 
   const handleGenerateConsolidatedReport = async () => {
-    // This logic needs to be adapted as there's no single "activeDay" for admin
     const allDaysSet = new Set<string>();
     state.profiles.forEach(p => p.days.forEach(d => allDaysSet.add(d.id)));
     const latestDay = Array.from(allDaysSet).sort((a,b) => new Date(b).getTime() - new Date(a).getTime())[0];

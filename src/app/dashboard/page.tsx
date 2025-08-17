@@ -26,7 +26,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Label } from '@/components/ui/label';
 
 
-// Componente para a barra de seleção de dia
+// Component for the day selection bar
 const DaySelector = () => {
   const { activeProfile, dispatch } = useAppContext();
   if (!activeProfile) return null;
@@ -79,7 +79,7 @@ const DaySelector = () => {
 };
 
 
-// Componente para adicionar nova função
+// Component to add new function
 const AddFunctionForm = ({ dayId }: { dayId: string }) => {
   const [functionName, setFunctionName] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -155,7 +155,7 @@ const AddFunctionForm = ({ dayId }: { dayId: string }) => {
   );
 };
 
-// --- Componente de Meta Diária ---
+// --- Daily Goal Component ---
 const DailyGoalCard = () => {
   const { dispatch, activeProfile, activeDay } = useAppContext();
   const [isOpen, setIsOpen] = useState(false);
@@ -200,7 +200,7 @@ const DailyGoalCard = () => {
                     <div className="space-y-2">
                       <h4 className="font-medium leading-none">Definir Meta</h4>
                       <p className="text-sm text-muted-foreground">
-                        Escolha la meta de peças e a função final.
+                        Escolha a meta de peças e a função final.
                       </p>
                     </div>
                     <div className="grid gap-2">
@@ -251,7 +251,7 @@ const DailyGoalCard = () => {
 }
 
 
-// Página Principal do Dashboard
+// Main Dashboard Page
 export default function DashboardPage() {
   const { activeProfile, activeDay } = useAppContext();
   const [selectedFunctionId, setSelectedFunctionId] = useState<string | null>(null);
@@ -267,7 +267,7 @@ export default function DashboardPage() {
   const selectedFunction = activeDay?.functions.find(f => f.id === selectedFunctionId) ?? null;
 
   if (!activeProfile) {
-    // Este estado não deve acontecer por causa do DashboardLayout, mas é uma segurança.
+    // This state should not happen because of DashboardLayout, but it's a safeguard.
     return (
       <div className="p-4 md:p-6 space-y-4">
         <Header title="Bem-vindo ao GiraTempo" />

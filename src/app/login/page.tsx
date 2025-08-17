@@ -23,25 +23,25 @@ export default function LoginPage() {
   const profile = state.profiles.find(p => p.id === profileId);
 
   useEffect(() => {
-    // Se não houver ID de perfil, volta para a seleção
+    // If there's no profile ID or the profile doesn't exist, go back to selection
     if (!profileId || !profile) {
       router.replace('/');
     }
   }, [profileId, profile, router]);
 
-  // Foco no primeiro input ao carregar
+  // Focus on the first input on load
   useEffect(() => {
     inputRefs.current[0]?.focus();
   }, []);
 
   const handlePinChange = (index: number, value: string) => {
-    if (!/^\d*$/.test(value)) return; // Aceita apenas dígitos
+    if (!/^\d*$/.test(value)) return; // Only accept digits
 
     const newPin = pin.split('');
     newPin[index] = value;
     setPin(newPin.join(''));
 
-    // Move o foco para o próximo input
+    // Move focus to the next input
     if (value && index < 3) {
       inputRefs.current[index + 1]?.focus();
     }
@@ -68,6 +68,7 @@ export default function LoginPage() {
         variant: 'destructive',
       });
       setPin('');
+      inputRefs.current.forEach(input => { if(input) input.value = '' });
       inputRefs.current[0]?.focus();
     }
   };
@@ -99,7 +100,6 @@ export default function LoginPage() {
                   ref={(el) => (inputRefs.current[index] = el)}
                   type="password"
                   maxLength={1}
-                  value={pin[index] || ''}
                   onChange={(e) => handlePinChange(index, e.target.value)}
                   onKeyDown={(e) => handleKeyDown(index, e)}
                   className="w-16 h-20 text-4xl text-center font-bold"
