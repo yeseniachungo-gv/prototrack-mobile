@@ -116,7 +116,7 @@ const AddFunctionForm = ({ dayId }: { dayId: string }) => {
       });
       
       toast({
-        title: "Sugestão Inteligente ✨",
+        title: "Sugestão Automática ✨",
         description: (
           <div className="flex flex-col gap-2">
             <p className="font-bold">Trabalhadores Sugeridos: <span className="font-normal">{result.suggestedWorkers || 'Nenhum'}</span></p>
@@ -147,7 +147,7 @@ const AddFunctionForm = ({ dayId }: { dayId: string }) => {
         onChange={(e) => setFunctionName(e.target.value)}
         className="flex-1"
       />
-      <Button type="button" variant="outline" size="icon" onClick={handleAISuggest} disabled={isLoading} title="Obter sugestão inteligente">
+      <Button type="button" variant="outline" size="icon" onClick={handleAISuggest} disabled={isLoading} title="Obter sugestão automática">
         <Sparkles className="h-4 w-4" />
       </Button>
       <Button type="submit">Adicionar</Button>
@@ -172,7 +172,7 @@ const DailyGoalCard = () => {
     const formData = new FormData(e.currentTarget);
     const target = parseInt(formData.get('goalTarget') as string) || 0;
     const functionId = formData.get('goalFunction') as string;
-    dispatch({ type: 'UPDATE_DAILY_GOAL', payload: { goal: target, functionId: functionId || null } });
+    dispatch({ type: 'UPDATE_DAILY_GOAL', payload: { goal: target, functionId: functionId === 'none' ? null : functionId } });
     setIsOpen(false);
   };
 
@@ -209,12 +209,12 @@ const DailyGoalCard = () => {
                     </div>
                     <div className="grid gap-2">
                       <Label htmlFor="goalFunction">Função para Meta</Label>
-                      <Select name="goalFunction" defaultValue={dailyGoal.functionId ?? ""}>
+                      <Select name="goalFunction" defaultValue={dailyGoal.functionId ?? "none"}>
                         <SelectTrigger>
                           <SelectValue placeholder="Selecione uma função" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="">Nenhuma</SelectItem>
+                          <SelectItem value="none">Nenhuma</SelectItem>
                           {activeDay.functions.map(f => (
                             <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>
                           ))}
