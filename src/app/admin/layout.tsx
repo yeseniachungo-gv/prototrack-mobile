@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { useAppContext } from '@/contexts/AppContext';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -15,16 +15,20 @@ export default function AdminLayout({
 }) {
   const { state } = useAppContext();
   const router = useRouter();
+  const pathname = usePathname();
+
+  const isLoginPage = pathname === '/admin/login';
 
   useEffect(() => {
-    // If there is no active profile, redirect to the selection screen
-    if (!state.isAdminAuthenticated) {
+    // If user is not authenticated and not already on the login page, redirect them.
+    if (!state.isAdminAuthenticated && !isLoginPage) {
       router.replace('/admin/login');
     }
-  }, [state.isAdminAuthenticated, router]);
+  }, [state.isAdminAuthenticated, isLoginPage, router]);
 
-  if (!state.isAdminAuthenticated) {
-    // Shows a loader or a message while redirecting
+  // If user is not authenticated and not on the login page, show a loader.
+  // The login page should be rendered directly.
+  if (!state.isAdminAuthenticated && !isLoginPage) {
     return (
         <div className="flex flex-col items-center justify-center min-h-screen">
              <Card>
@@ -40,6 +44,6 @@ export default function AdminLayout({
     );
   }
 
-  // If there is an active profile, render the dashboard content
+  // If authenticated or on the login page, render the content.
   return <>{children}</>;
 }
