@@ -7,10 +7,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 export default function StopwatchPage() {
   return (
     <div className="p-4 md:p-6 space-y-4">
-      <Header title="Cronômetro de Produção" />
+      <Header title="Cronômetro" />
       <Card>
         <CardHeader>
-          <CardTitle>Cronômetro</CardTitle>
+          <CardTitle>Relógio</CardTitle>
         </CardHeader>
         <CardContent>
           <p className="text-muted-foreground">O relógio grande e os controles do cronômetro serão implementados aqui.</p>
@@ -18,7 +18,7 @@ export default function StopwatchPage() {
       </Card>
        <Card>
         <CardHeader>
-          <CardTitle>Histórico do Dia</CardTitle>
+          <CardTitle>Histórico</CardTitle>
         </CardHeader>
         <CardContent>
           <p className="text-muted-foreground">A tabela com o histórico de medições do dia aparecerá aqui.</p>

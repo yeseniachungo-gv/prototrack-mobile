@@ -1,8 +1,10 @@
+// src/app/page.tsx (Página de Planilhas/Início)
 "use client";
 
 import React from 'react';
 import Header from '@/components/Header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 
 export default function HomePage() {
 
@@ -16,8 +18,11 @@ export default function HomePage() {
         </CardHeader>
         <CardContent>
           <p className="text-muted-foreground">
-            Aqui ficará o resumo do dia com os principais KPIs.
+            Aqui ficará o resumo do dia com os principais KPIs e a lista de dias.
           </p>
+          <div className="mt-4">
+            <Button size="sm">+ Dia</Button>
+          </div>
         </CardContent>
       </Card>
 
