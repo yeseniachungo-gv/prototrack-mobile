@@ -1,10 +1,10 @@
 // src/app/admin/page.tsx
 "use client";
 
-import React, { useState, useMemo } from 'react';
+import React, { useState } from 'react';
 import Header from '@/components/Header';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { ShieldCheck, Users, BarChart2, Loader2, BookCheck, Plus, Trash2 } from 'lucide-react';
+import { ShieldCheck, Users, BarChart2, Loader2, BookCheck, Plus, Trash2, HardHat, AlertTriangle } from 'lucide-react';
 import { useAppContext } from '@/contexts/AppContext';
 import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import ReportDialog from '@/components/ReportDialog';
@@ -21,6 +21,7 @@ import {
 import { format, parseISO } from 'date-fns';
 import { Input } from '@/components/ui/input';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { MasterDataItem } from '@/lib/types';
 
 
 const AdminProductionChart = () => {
@@ -190,6 +191,56 @@ const ProfileManager = () => {
     )
 }
 
+const MasterDataManager = ({ title, icon: Icon, items, type }: { title: string, icon: React.ElementType, items: MasterDataItem[], type: 'workers' | 'reasons' }) => {
+    const { dispatch } = useAppContext();
+    const [newItemName, setNewItemName] = useState('');
+    const { toast } = useToast();
+
+    const handleAddItem = () => {
+        if (!newItemName.trim()) {
+            toast({ title: 'Erro', description: 'O nome não pode estar vazio.', variant: 'destructive'});
+            return;
+        }
+        dispatch({ type: 'ADD_MASTER_DATA', payload: { type, name: newItemName.trim() }});
+        toast({ title: 'Item adicionado!' });
+        setNewItemName('');
+    }
+
+    const handleDeleteItem = (id: string) => {
+        dispatch({ type: 'DELETE_MASTER_DATA', payload: { type, id }});
+        toast({ title: 'Item removido.', variant: 'destructive'});
+    }
+
+    return (
+        <Card>
+            <CardHeader>
+                <CardTitle className="flex items-center gap-2"><Icon /> {title}</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+                <div className="flex items-center gap-2">
+                    <Input 
+                        placeholder={`Nome do novo ${type === 'workers' ? 'trabalhador' : 'motivo'}`} 
+                        value={newItemName}
+                        onChange={e => setNewItemName(e.target.value)}
+                        onKeyDown={e => e.key === 'Enter' && handleAddItem()}
+                    />
+                    <Button onClick={handleAddItem} size="sm">Adicionar</Button>
+                </div>
+                <div className="max-h-60 overflow-y-auto pr-2 space-y-2">
+                    {items.map(item => (
+                        <div key={item.id} className="flex items-center justify-between p-2 bg-muted rounded-md">
+                            <span>{item.name}</span>
+                             <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleDeleteItem(item.id)}>
+                                <Trash2 className="h-4 w-4 text-destructive"/>
+                            </Button>
+                        </div>
+                    ))}
+                </div>
+            </CardContent>
+        </Card>
+    );
+};
+
 
 export default function AdminPage() {
   const { state } = useAppContext();
@@ -294,6 +345,21 @@ export default function AdminPage() {
             </Button>
           </CardContent>
         </Card>
+
+        <MasterDataManager 
+            title="Cadastro de Trabalhadores"
+            icon={HardHat}
+            items={state.masterWorkers}
+            type="workers"
+        />
+
+        <MasterDataManager 
+            title="Cadastro de Motivos de Parada"
+            icon={AlertTriangle}
+            items={state.masterStopReasons}
+            type="reasons"
+        />
+
       </div>
 
       {renderReportDialog()}

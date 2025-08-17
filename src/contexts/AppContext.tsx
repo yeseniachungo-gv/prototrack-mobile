@@ -3,7 +3,7 @@
 
 import React, { createContext, useReducer, useContext, useEffect, useRef } from 'react';
 import { produce } from 'immer';
-import type { AppState, Day, FunctionEntry, Profile, Announcement, StopwatchState } from '@/lib/types';
+import type { AppState, Day, FunctionEntry, Profile, Announcement, StopwatchState, MasterDataItem } from '@/lib/types';
 import { v4 as uuidv4 } from 'uuid';
 
 type Action =
@@ -31,15 +31,16 @@ type Action =
   | { type: 'SET_ACTIVE_PROFILE'; payload: string | null }
   | { type: 'SET_CURRENT_PROFILE_FOR_LOGIN'; payload: string | null }
   | { type: 'UPDATE_PROFILE_DETAILS', payload: { profileId: string; name: string; pin: string } }
-  | { type: 'ADD_ANNOUNCEMENT', payload: { content: string } };
+  | { type: 'ADD_ANNOUNCEMENT', payload: { content: string } }
+  | { type: 'ADD_MASTER_DATA'; payload: { type: 'workers' | 'reasons'; name: string } }
+  | { type: 'DELETE_MASTER_DATA'; payload: { type: 'workers' | 'reasons'; id: string } };
 
-const APP_STATE_KEY = 'giratempo-state-v1';
+const APP_STATE_KEY = 'giratempo-state-v2';
 
 const createDefaultProfile = (name: string): Profile => {
     const today = new Date().toISOString().split('T')[0];
     const defaultHours = Array.from({ length: 10 }, (_, i) => `${String(i + 8).padStart(2, '0')}:00`);
-    const defaultWorkers = Array.from({ length: 3 }, (_, i) => `Trabalhador ${i + 1}`);
-
+    
     return {
         id: uuidv4(),
         name,
@@ -49,7 +50,7 @@ const createDefaultProfile = (name: string): Profile => {
             functions: [{
                 id: uuidv4(),
                 name: "Função Exemplo",
-                workers: defaultWorkers,
+                workers: ['Trabalhador 1', 'Trabalhador 2', 'Trabalhador 3'],
                 hours: defaultHours,
                 pieces: {},
                 observations: {}
@@ -78,6 +79,18 @@ function getInitialState(): AppState {
         history: []
     },
     announcements: [],
+    masterWorkers: [
+      { id: uuidv4(), name: 'Trabalhador 1'},
+      { id: uuidv4(), name: 'Trabalhador 2'},
+      { id: uuidv4(), name: 'Trabalhador 3'},
+    ],
+    masterStopReasons: [
+      { id: uuidv4(), name: 'Troca de função' },
+      { id: uuidv4(), name: 'Treinamento' },
+      { id: uuidv4(), name: 'Manutenção de máquina' },
+      { id: uuidv4(), name: 'Pausa prolongada' },
+      { id: uuidv4(), name: 'Outro' },
+    ]
   };
 }
 
@@ -151,6 +164,25 @@ const appReducer = produce((draft: AppState, action: Action) => {
               draft.announcements.unshift(newAnnouncement);
             }
             break;
+        }
+
+        // --- Master Data Actions ---
+        case 'ADD_MASTER_DATA': {
+            const { type, name } = action.payload;
+            const targetList = type === 'workers' ? draft.masterWorkers : draft.masterStopReasons;
+            if (!targetList.find(i => i.name.toLowerCase() === name.toLowerCase())) {
+                targetList.push({ id: uuidv4(), name });
+            }
+            break;
+        }
+        case 'DELETE_MASTER_DATA': {
+             const { type, id } = action.payload;
+             if (type === 'workers') {
+                draft.masterWorkers = draft.masterWorkers.filter(i => i.id !== id);
+             } else {
+                draft.masterStopReasons = draft.masterStopReasons.filter(i => i.id !== id);
+             }
+             break;
         }
 
         // --- Stopwatch Actions ---
@@ -288,9 +320,8 @@ const appReducer = produce((draft: AppState, action: Action) => {
                         case 'ADD_FUNCTION':
                             if (!activeDay.functions.find(f => f.name.toLowerCase() === payload.functionName.toLowerCase())) {
                                 const defaultHours = Array.from({ length: 10 }, (_, i) => `${String(i + 8).padStart(2, '0')}:00`);
-                                const defaultWorkers = Array.from({ length: 3 }, (_, i) => `Trabalhador ${i + 1}`);
                                 activeDay.functions.push({
-                                    id: uuidv4(), name: payload.functionName, hours: defaultHours, workers: defaultWorkers, pieces: {}, observations: {},
+                                    id: uuidv4(), name: payload.functionName, hours: defaultHours, workers: [], pieces: {}, observations: {},
                                 });
                             }
                             break;
@@ -372,6 +403,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         savedState.activeProfileId = null;
         savedState.currentProfileForLogin = null;
         if (!savedState.announcements) savedState.announcements = [];
+        if (!savedState.masterWorkers) savedState.masterWorkers = getInitialState().masterWorkers;
+        if (!savedState.masterStopReasons) savedState.masterStopReasons = getInitialState().masterStopReasons;
 
         // Reset stopwatch state to avoid bugs, keeping history
         const initialStopwatch = getInitialState().stopwatch;

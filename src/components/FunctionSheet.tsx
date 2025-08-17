@@ -25,8 +25,8 @@ interface ObservationPopoverProps {
 }
 
 const ObservationPopover: React.FC<ObservationPopoverProps> = ({ dayId, functionId, worker, hour, observation }) => {
-  const { dispatch } = useAppContext();
-  const motivos = ['Troca de função', 'Treinamento', 'Manutenção de máquina', 'Pausa prolongada', 'Outro'];
+  const { state, dispatch } = useAppContext();
+  const { masterStopReasons } = state;
   const [reason, setReason] = useState(observation?.reason || '');
   const [detail, setDetail] = useState(observation?.detail || '');
   const [minutesStopped, setMinutesStopped] = useState(observation?.minutesStopped || 0);
@@ -36,7 +36,7 @@ const ObservationPopover: React.FC<ObservationPopoverProps> = ({ dayId, function
   const handleSave = () => {
     dispatch({
       type: 'UPDATE_OBSERVATION',
-      payload: { dayId, functionId, worker, hour, reason, detail, minutesStopped: reason === 'Manutenção de máquina' || reason === 'Pausa prolongada' ? minutesStopped : 0 }
+      payload: { dayId, functionId, worker, hour, reason, detail, minutesStopped: showMinutesInput ? minutesStopped : 0 }
     });
     toast({ title: "Observação salva!" });
     setIsOpen(false);
@@ -66,7 +66,7 @@ const ObservationPopover: React.FC<ObservationPopoverProps> = ({ dayId, function
                 <SelectValue placeholder="Selecione um motivo" />
               </SelectTrigger>
               <SelectContent>
-                {motivos.map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}
+                {masterStopReasons.map(m => <SelectItem key={m.id} value={m.name}>{m.name}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>
@@ -108,8 +108,9 @@ interface FunctionSheetProps {
 }
 
 export default function FunctionSheet({ isOpen, onClose, func, dayId }: FunctionSheetProps) {
-  const { dispatch } = useAppContext();
-  const newWorkerInputRef = useRef<HTMLInputElement>(null);
+  const { state, dispatch } = useAppContext();
+  const { masterWorkers } = state;
+  const [newWorkerName, setNewWorkerName] = useState('');
   const { toast } = useToast();
 
   if (!func) return null;
@@ -131,13 +132,12 @@ export default function FunctionSheet({ isOpen, onClose, func, dayId }: Function
   };
   
   const handleAddWorker = () => {
-    const workerName = newWorkerInputRef.current?.value;
-    if (workerName) {
-      dispatch({ type: 'ADD_WORKER_TO_FUNCTION', payload: { dayId, functionId: func.id, workerName }});
-      newWorkerInputRef.current.value = '';
-      toast({ title: `Trabalhador "${workerName}" adicionado!` });
+    if (newWorkerName) {
+      dispatch({ type: 'ADD_WORKER_TO_FUNCTION', payload: { dayId, functionId: func.id, workerName: newWorkerName }});
+      toast({ title: `Trabalhador "${newWorkerName}" adicionado!` });
+      setNewWorkerName('');
     } else {
-       toast({ title: "Erro", description: "O nome do trabalhador não pode estar vazio.", variant: "destructive" });
+       toast({ title: "Erro", description: "Selecione um trabalhador para adicionar.", variant: "destructive" });
     }
   };
    
@@ -160,6 +160,10 @@ export default function FunctionSheet({ isOpen, onClose, func, dayId }: Function
   );
 
   const grandTotal = colTotals.reduce((sum, total) => sum + total, 0);
+  
+  const availableWorkers = masterWorkers.filter(
+    masterWorker => !func.workers.some(fnWorker => fnWorker.toLowerCase() === masterWorker.name.toLowerCase())
+  );
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -273,7 +277,18 @@ export default function FunctionSheet({ isOpen, onClose, func, dayId }: Function
 
         <DialogFooter className="p-2 sm:p-0 mt-4 flex-wrap gap-2 justify-between">
              <div className="flex gap-2 items-center">
-                <Input ref={newWorkerInputRef} placeholder="Nome do novo trabalhador" className="h-10"/>
+                <Select value={newWorkerName} onValueChange={setNewWorkerName}>
+                    <SelectTrigger className="h-10 w-[200px]">
+                        <SelectValue placeholder="Selecione um trabalhador" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        {availableWorkers.length > 0 ? (
+                             availableWorkers.map(w => <SelectItem key={w.id} value={w.name}>{w.name}</SelectItem>)
+                        ) : (
+                            <div className="p-2 text-center text-sm text-muted-foreground">Todos já foram adicionados.</div>
+                        )}
+                    </SelectContent>
+                </Select>
                 <Button variant="outline" size="sm" onClick={handleAddWorker}><Plus className="mr-2 h-4 w-4"/>Trabalhador</Button>
                 <Button variant="outline" size="sm" onClick={handleAddHour}><Plus className="mr-2 h-4 w-4"/>Hora</Button>
             </div>
@@ -283,5 +298,3 @@ export default function FunctionSheet({ isOpen, onClose, func, dayId }: Function
     </Dialog>
   );
 }
-
-    
