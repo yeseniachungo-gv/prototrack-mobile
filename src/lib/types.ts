@@ -35,8 +35,8 @@ export interface StopwatchHistoryEntry {
     pieces: number;
     workerName: string;
     functionName: string;
-    auxiliaryTimePercent: number;
     averagePerHour: number;
+    auxiliaryTimePercent: number;
     adjustedAveragePerHour: number;
 }
 

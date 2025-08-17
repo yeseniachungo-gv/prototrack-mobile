@@ -111,6 +111,31 @@ const AppContext = createContext<{
 } | undefined>(undefined);
 
 const appReducer = produce((draft: AppState, action: Action) => {
+    
+    const saveStopwatchHistory = (draft: AppState) => {
+        const { session, mode, initialTime, time, pieces } = draft.stopwatch;
+        const duration = mode === 'countdown' ? initialTime - time : time;
+
+        if (duration > 0 || pieces > 0) {
+            const pph = duration > 0 ? (pieces / duration) * 3600 : 0;
+            const adjustedPieces = pieces * (1 - (session.auxiliaryTimePercent / 100));
+            const adjustedPph = duration > 0 ? (adjustedPieces / duration) * 3600 : 0;
+
+            const newEntry: StopwatchHistoryEntry = {
+                id: uuidv4(),
+                endTime: new Date().toISOString(),
+                duration,
+                pieces,
+                workerName: session.operator,
+                functionName: session.functionName,
+                averagePerHour: pph,
+                auxiliaryTimePercent: session.auxiliaryTimePercent,
+                adjustedAveragePerHour: adjustedPph,
+            };
+            draft.stopwatch.history.unshift(newEntry);
+        }
+    };
+    
     switch (action.type) {
         case 'SET_STATE': {
             return action.payload;
@@ -222,27 +247,7 @@ const appReducer = produce((draft: AppState, action: Action) => {
         case 'STOP_TIMER': {
             if (!draft.stopwatch.isRunning) break;
             draft.stopwatch.isRunning = false;
-
-            const { operator, functionName } = draft.stopwatch.session;
-            const duration = draft.stopwatch.mode === 'countdown'
-                ? draft.stopwatch.initialTime - draft.stopwatch.time
-                : draft.stopwatch.time;
-            
-            if (duration > 0 || draft.stopwatch.pieces > 0) {
-                const pieces = draft.stopwatch.pieces;
-                const pph = duration > 0 ? (pieces / duration) * 3600 : 0;
-
-                const newEntry: StopwatchHistoryEntry = {
-                    id: uuidv4(),
-                    endTime: new Date().toISOString(),
-                    duration: duration, 
-                    pieces: pieces,
-                    workerName: operator,
-                    functionName: functionName,
-                    averagePerHour: pph,
-                };
-                draft.stopwatch.history.unshift(newEntry);
-            }
+            saveStopwatchHistory(draft);
             break;
         }
         case 'RESET_TIMER': {
@@ -270,25 +275,8 @@ const appReducer = produce((draft: AppState, action: Action) => {
                 draft.stopwatch.time -= 1;
                 if (draft.stopwatch.time <= 0) {
                     draft.stopwatch.time = 0;
-                    draft.stopwatch.isRunning = false; // Stop the timer
-                    
-                    // Logic from STOP_TIMER, duplicated here to avoid chained dispatches
-                    const { operator, functionName } = draft.stopwatch.session;
-                    const duration = draft.stopwatch.initialTime;
-                    if (duration > 0 || draft.stopwatch.pieces > 0) {
-                      const pieces = draft.stopwatch.pieces;
-                      const pph = duration > 0 ? (pieces / duration) * 3600 : 0;
-                      const newEntry: StopwatchHistoryEntry = {
-                          id: uuidv4(),
-                          endTime: new Date().toISOString(),
-                          duration, 
-                          pieces,
-                          workerName: operator,
-                          functionName,
-                          averagePerHour: pph,
-                      };
-                      draft.stopwatch.history.unshift(newEntry);
-                    }
+                    draft.stopwatch.isRunning = false;
+                    saveStopwatchHistory(draft);
                 }
             } else { // countup
                 draft.stopwatch.time += 1;
@@ -338,8 +326,17 @@ const appReducer = produce((draft: AppState, action: Action) => {
                             func.observations = {};
                         });
                     } else {
-                        // If no days exist, create today from scratch
+                        // If no days exist, create today and add a default function
                         newDayId = new Date().toISOString().split('T')[0];
+                        const defaultHours = Array.from({ length: 10 }, (_, i) => `${String(i + 8).padStart(2, '0')}:00`);
+                        functionsTemplate = [{
+                            id: uuidv4(),
+                            name: "Função Exemplo",
+                            workers: ['Trabalhador 1'],
+                            hours: defaultHours,
+                            pieces: {},
+                            observations: {}
+                        }];
                     }
 
                     if (!activeProfile.days.find(d => d.id === newDayId)) {

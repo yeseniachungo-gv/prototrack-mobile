@@ -267,7 +267,8 @@ export default function StopwatchPage() {
                         <TableHead>Função</TableHead>
                         <TableHead className="text-center">Peças</TableHead>
                         <TableHead className="text-center">Tempo</TableHead>
-                        <TableHead className="text-right">Média/h</TableHead>
+                        <TableHead className="text-center">Média/h</TableHead>
+                        <TableHead className="text-right">Média/h (Ajust.)</TableHead>
                     </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -277,7 +278,8 @@ export default function StopwatchPage() {
                             <TableCell>{entry.functionName}</TableCell>
                             <TableCell className="text-center">{entry.pieces}</TableCell>
                             <TableCell className="text-center font-mono">{formatTime(entry.duration)}</TableCell>
-                            <TableCell className="text-right font-mono">{entry.averagePerHour.toFixed(0)}</TableCell>
+                            <TableCell className="text-center font-mono">{entry.averagePerHour.toFixed(0)}</TableCell>
+                            <TableCell className="text-right font-mono">{entry.adjustedAveragePerHour.toFixed(0)}</TableCell>
                         </TableRow>
                     ))}
                 </TableBody>

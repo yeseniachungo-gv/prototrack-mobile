@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { useAppContext } from '@/contexts/AppContext';
-import { Moon, Sun, Palette, Bell, HelpCircle, User, Download, Upload, FileText } from 'lucide-react';
+import { Moon, Sun, Palette, HelpCircle, User, Download, Upload, FileText } from 'lucide-react';
 import {
   Accordion,
   AccordionContent,
@@ -223,25 +223,15 @@ export default function SettingsPage() {
                 </div>
               </AccordionContent>
             </AccordionItem>
-            <AccordionItem value="item-4">
-              <AccordionTrigger className="px-6">
-                 <div className="flex items-center gap-3">
-                    <Bell /> Notificações
-                </div>
-              </AccordionTrigger>
-              <AccordionContent className="pt-4 px-6 text-muted-foreground">
-                Em breve: Configure alertas sonoros, notificações push para metas atingidas e resumos diários por e-mail.
-              </AccordionContent>
-            </AccordionItem>
           </Accordion>
         </CardContent>
       </Card>
       
       <Card>
         <CardHeader>
-          <CardTitle>Ajuda & Suporte</CardTitle>
+          <CardTitle>Ajuda</CardTitle>
            <CardDescription>
-            Precisa de ajuda ou tem alguma dúvida? Consulte nossos guias.
+            Precisa de ajuda ou tem alguma dúvida? Consulte nosso guia.
            </CardDescription>
         </CardHeader>
          <CardContent>
@@ -249,30 +239,18 @@ export default function SettingsPage() {
             <AccordionItem value="ajuda-1">
               <AccordionTrigger>
                 <div className="flex items-center gap-3">
-                  <HelpCircle /> Central de Ajuda
+                  <HelpCircle /> Guia Rápido
                 </div>
               </AccordionTrigger>
               <AccordionContent className="pt-4 space-y-2 text-muted-foreground">
                 <p>Bem-vindo ao GiraTempo! Aqui estão algumas dicas:</p>
                 <ul className="list-disc pl-5">
                     <li>Use a aba <strong>Dashboard</strong> para gerenciar suas funções de produção diárias.</li>
-                    <li>O <strong>Cronômetro</strong> é ideal para medições de tempo precisas.</li>
+                    <li>O <strong>Cronômetro</strong> é ideal para medições de tempo precisas de um operador.</li>
                     <li>Acesse <strong>Relatórios</strong> para análises automáticas e exportação de dados.</li>
                     <li>Use o <strong>Mural</strong> para se comunicar com outras equipes.</li>
+                    <li>O painel <strong>Admin</strong> permite gerenciar perfis, trabalhadores e motivos de parada.</li>
                 </ul>
-                 <p className="pt-4">Para criar ou gerenciar perfis, contate o administrador do sistema.</p>
-              </AccordionContent>
-            </AccordionItem>
-             <AccordionItem value="ajuda-2">
-              <AccordionTrigger>Termos de Serviço</AccordionTrigger>
-              <AccordionContent className="pt-4 text-muted-foreground">
-                Em breve: O documento completo com os Termos de Serviço e a Política de Privacidade estará disponível aqui.
-              </AccordionContent>
-            </AccordionItem>
-             <AccordionItem value="ajuda-3">
-              <AccordionTrigger>Falar com o Suporte</AccordionTrigger>
-              <AccordionContent className="pt-4 text-muted-foreground">
-                Em breve: Entre em contato conosco por e-mail ou chat para obter ajuda.
               </AccordionContent>
             </AccordionItem>
           </Accordion>
