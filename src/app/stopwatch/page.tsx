@@ -86,23 +86,23 @@ export default function StopwatchPage() {
                 <TabsTrigger value="countdown">Contagem Regressiva</TabsTrigger>
                 <TabsTrigger value="countup">Contagem Progressiva</TabsTrigger>
               </TabsList>
+              <TabsContent value={stopwatch.mode} className="pt-4">
+                <div className="grid grid-cols-2 gap-4">
+                      <div>
+                          <Label htmlFor="operador">Operador</Label>
+                          <Input id="operador" placeholder="Nome do operador" value={operator} onChange={e => setOperator(e.target.value)} disabled={stopwatch.isRunning}/>
+                      </div>
+                      <div>
+                          <Label htmlFor="funcao">Função</Label>
+                          <Input id="funcao" placeholder="Ex: Reta / Revisão" value={func} onChange={e => setFunc(e.target.value)} disabled={stopwatch.isRunning}/>
+                      </div>
+                </div>
+                  <div className="mt-4">
+                      <Label htmlFor="aux-time">Tempo Auxiliar (%)</Label>
+                      <Input id="aux-time" type="number" value={auxTime} onChange={e => setAuxTime(parseFloat(e.target.value) || 0)} disabled={stopwatch.isRunning}/>
+                  </div>
+              </TabsContent>
             </Tabs>
-          <TabsContent value={stopwatch.mode} className="pt-4">
-             <div className="grid grid-cols-2 gap-4">
-                  <div>
-                      <Label htmlFor="operador">Operador</Label>
-                      <Input id="operador" placeholder="Nome do operador" value={operator} onChange={e => setOperator(e.target.value)} disabled={stopwatch.isRunning}/>
-                  </div>
-                  <div>
-                      <Label htmlFor="funcao">Função</Label>
-                      <Input id="funcao" placeholder="Ex: Reta / Revisão" value={func} onChange={e => setFunc(e.target.value)} disabled={stopwatch.isRunning}/>
-                  </div>
-             </div>
-              <div className="mt-4">
-                   <Label htmlFor="aux-time">Tempo Auxiliar (%)</Label>
-                   <Input id="aux-time" type="number" value={auxTime} onChange={e => setAuxTime(parseFloat(e.target.value) || 0)} disabled={stopwatch.isRunning}/>
-              </div>
-          </TabsContent>
         </CardContent>
       </Card>
       
@@ -210,3 +210,5 @@ export default function StopwatchPage() {
     </div>
   );
 }
+
+    
