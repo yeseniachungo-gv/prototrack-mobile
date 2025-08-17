@@ -204,7 +204,7 @@ export default function ReportsPage() {
                     </Select>
                  </div>
             </div>
-        </Header>
+        </CardHeader>
         <CardContent>
           {filteredDays.length > 0 ? (
             <ProductionTrendChart days={filteredDays} />
