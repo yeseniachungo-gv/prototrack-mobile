@@ -1,7 +1,7 @@
 // src/app/reports/page.tsx
 "use client";
 
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useMemo } from 'react';
 import Header from '@/components/Header';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -55,8 +55,8 @@ export default function ReportsPage() {
   const [isReportOpen, setIsReportOpen] = useState(false);
 
   // Verifica se o usuário é admin. Por enquanto, qualquer um pode ver o botão.
-  // Futuramente, essa lógica será baseada no perfil logado.
-  const isAdmin = state.profiles.some(p => p.id === state.activeProfileId); // Lógica de admin temporária
+  const isAdmin = useMemo(() => state.profiles.some(p => p.id === state.activeProfileId), [state.profiles, state.activeProfileId]);
+
 
   // --- Handlers de Ações ---
   const handleExportCSV = (day: Day) => {
@@ -193,13 +193,15 @@ export default function ReportsPage() {
         <CardContent className="flex flex-col sm:flex-row gap-4">
           <Button onClick={handleGenerateDailyReport} disabled={!activeDay || isGenerating}>
             {isGenerating ? <Loader2 className="mr-2 animate-spin"/> : <BookCheck className="mr-2" />}
-            Gerar Resumo do Dia (Perfil Atual)
+            Gerar Resumo do Dia
           </Button>
           
-          <Button onClick={handleGenerateConsolidatedReport} disabled={!activeDay || isGenerating} variant="secondary">
-            {isGenerating ? <Loader2 className="mr-2 animate-spin"/> : <ShieldCheck className="mr-2" />}
-            Gerar Relatório Consolidado
-          </Button>
+          {isAdmin && (
+            <Button onClick={handleGenerateConsolidatedReport} disabled={!activeDay || isGenerating} variant="secondary">
+                {isGenerating ? <Loader2 className="mr-2 animate-spin"/> : <ShieldCheck className="mr-2" />}
+                Gerar Relatório Consolidado
+            </Button>
+          )}
         </CardContent>
       </Card>
 
